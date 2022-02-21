@@ -20,6 +20,7 @@ export interface RPCMessageEventOptions {
 export interface RPCInitOptions {
   event: RPCEvent;
   methods?: Record<string, RPCHandler>;
+  timeout?: number;
 }
 
 export interface RPCSYNCEvent {
@@ -124,6 +125,10 @@ export class RPC {
 
   private _methods: Record<string, RPCHandler> = {};
 
+  private _timeout: number = 0;
+
+  private _$connect: Promise<void>;
+
   static uuid(): string {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
       const r = (Math.random() * 16) | 0;
@@ -134,6 +139,7 @@ export class RPC {
 
   constructor(options: RPCInitOptions) {
     this._event = options.event;
+    this._timeout = options.timeout || 0;
     if (options.methods) {
       Object.entries(options.methods).forEach(([method, handler]) => {
         this.registerMethod(method, handler);
@@ -147,6 +153,32 @@ export class RPC {
 
   _getAckEventName(method: string): string {
     return `ack:${method}`;
+  }
+
+  // check connect
+  connect(timeout: number): Promise<void> {
+    if (this._$connect) {
+      return this._$connect;
+    }
+    this._$connect = new Promise((resolve, reject) => {
+      const connectTimeout = timeout || this._timeout;
+      let connectTimer: ReturnType<typeof setTimeout>;
+      if (connectTimeout) {
+        connectTimer = setTimeout(() => {
+          reject();
+        }, connectTimeout);
+      }
+      const connectSynEventName = this._getSynEventName('__connect_event');
+      const connectAckEventName = this._getAckEventName('__connect_event');
+      const connectAckEventHandler = () => {
+        clearTimeout(connectTimer);
+        this._event.off(connectAckEventName);
+        resolve();
+      };
+      this._event.on(connectAckEventName, connectAckEventHandler);
+      this._event.emit(connectSynEventName);
+    });
+    return this._$connect;
   }
 
   registerMethod(method: string, handler: RPCHandler) {

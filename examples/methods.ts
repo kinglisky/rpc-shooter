@@ -12,7 +12,7 @@ export const BMethods: RPCInitOptions['methods'] = {
   },
 };
 
-export const registerMethods = (
+export const invokeMethods = (
   rpc: RPC,
   methods: RPCInitOptions['methods']
 ) => {};
