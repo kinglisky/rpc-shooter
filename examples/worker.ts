@@ -6,13 +6,13 @@ import './style.css';
 const worker = new RPCWorker();
 
 const rpc = new RPC({
-  event: new RPCMessageEvent({
-    currentContext: worker,
-    targetContext: worker,
-  }),
-  methods: AMethods,
+    event: new RPCMessageEvent({
+        currentContext: worker,
+        targetContext: worker,
+    }),
+    methods: AMethods,
 });
 
 rpc.invoke('B.now', null).then((res) => {
-  console.log(`A invoke B.now result: ${res}`);
+    console.log(`A invoke B.now result: ${res}`);
 });
