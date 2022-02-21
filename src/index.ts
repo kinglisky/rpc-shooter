@@ -1,35 +1,35 @@
-interface RPCHandler {
+export interface RPCHandler {
   (...args: any[]): any;
 }
-interface RPCEvent {
+export interface RPCEvent {
   emit(event: string, ...args: any[]): void;
   on(event: string, fn: RPCHandler): void;
   off(event: string, fn?: RPCHandler): void;
   destroy?: () => void;
 }
 
-interface RPCEventData {
+export interface RPCEventData {
   event: string;
   args: any[];
 }
-interface RPCMessageEventOptions {
-  currentContext: Window | Worker;
-  targetContext: Window | Worker;
+export interface RPCMessageEventOptions {
+  currentContext: Window | Worker | MessagePort;
+  targetContext: Window | Worker | MessagePort;
   origin?: string;
 }
-interface RPCInitOptions {
+export interface RPCInitOptions {
   event: RPCEvent;
   methods?: Record<string, RPCHandler>;
 }
 
-interface RPCSYNCEvent {
+export interface RPCSYNCEvent {
   jsonrpc: '2.0';
   method: string;
   params: any;
   id?: string;
 }
 
-interface RPCSACKEvent {
+export interface RPCSACKEvent {
   jsonrpc: '2.0';
   result: any;
   error?: {
@@ -41,8 +41,14 @@ interface RPCSACKEvent {
 }
 
 export class RPCMessageEvent implements RPCEvent {
-  private _currentContext: Window | Worker;
-  private _targetContextContext: Window | Worker;
+  static WorkerConstructorNames: Array<string> = [
+    'DedicatedWorkerGlobalScope',
+    'SharedWorkerGlobalScope',
+    'Worker',
+    'SharedWorker',
+  ];
+  private _currentContext: Window | Worker | MessagePort;
+  private _targetContextContext: Window | Worker | MessagePort;
   private _origin: string;
   private _events: Record<string, Array<RPCHandler>>;
   private _receiveMessage: (event: MessageEvent) => void;
@@ -76,7 +82,12 @@ export class RPCMessageEvent implements RPCEvent {
       event,
       args,
     };
-    if (globalThis.constructor.name === 'DedicatedWorkerGlobalScope') {
+    // in worker
+    if (
+      RPCMessageEvent.WorkerConstructorNames.includes(
+        this._targetContextContext.constructor.name
+      )
+    ) {
       this._targetContextContext.postMessage(data);
       return;
     }
@@ -187,5 +198,13 @@ export class RPC {
     });
   }
 
-  destroy(): void {}
+  destroy(): void {
+    Object.entries(this._methods).forEach(([method]) => {
+      const synEventName = this._getSynEventName(method);
+      this._event.off(synEventName);
+    });
+    if (this._event.destroy) {
+      this._event.destroy();
+    }
+  }
 }

@@ -1,12 +1,11 @@
 import { RPCMessageEvent, RPC } from '../src/index';
 import { BMethods } from './methods';
-import './style.css';
 
+const ctx: Worker = self as any;
 const rpc = new RPC({
   event: new RPCMessageEvent({
-    currentContext: window,
-    targetContext: window.top,
-    origin: '*',
+    currentContext: ctx,
+    targetContext: ctx,
   }),
   methods: BMethods,
 });
