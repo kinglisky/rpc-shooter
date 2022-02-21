@@ -1,30 +1,22 @@
 import { RPCMessageEvent, RPC } from '../src/index';
-// import RPCWorker from './worker.self?worker';
+import SWorker from './worker.share?sharedworker';
+import { AMethods } from './methods';
 import './style.css';
 
-// const textarea = document.querySelector('textarea')!;
-// const message = (msg: string) => {
-//   textarea.value = msg;
-// };
+(async function () {
+    const worker: SharedWorker = new SWorker();
+    worker.port.start();
+    const rpc = new RPC({
+        event: new RPCMessageEvent({
+            currentContext: worker.port,
+            targetContext: worker.port,
+        }),
+        methods: AMethods,
+    });
 
-// const worker = new RPCWorker();
+    await rpc.connect(2000);
 
-// const workerRPC = new RPC({
-//   event: new RPCMessageEvent({
-//     currentContext: worker,
-//     targetContext: worker,
-//   }),
-// });
-
-// workerRPC.registerMethod('parent.random', (v) => {
-//   return new Promise((resolve) => {
-//     setTimeout(() => {
-//       resolve((Math.random() * v) | 0);
-//     }, 1000);
-//   });
-// });
-
-// workerRPC.invoke('child.now', null).then((res) => {
-//   message(`parent invoke child child.now result: ${res}`);
-// });
-console.log('parent worker rpc', workerRPC);
+    rpc.invoke('B.now', null).then((res) => {
+        console.log(`A invoke B.now result: ${res}`);
+    });
+})();

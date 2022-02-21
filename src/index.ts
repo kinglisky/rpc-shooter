@@ -48,6 +48,7 @@ export class RPCMessageEvent implements RPCEvent {
         'SharedWorkerGlobalScope',
         'Worker',
         'SharedWorker',
+        'MessagePort',
     ];
     private _currentContext: Window | Worker | MessagePort;
     private _targetContextContext: Window | Worker | MessagePort;
