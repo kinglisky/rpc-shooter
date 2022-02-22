@@ -4,6 +4,7 @@ interface SharedWorkerGlobalScope {
     onconnect: (event: MessageEvent) => void;
 }
 const ctx: SharedWorkerGlobalScope = self as any;
+const sharedData = Date.now();
 
 ctx.onconnect = (event: MessageEvent) => {
     console.log(event);
@@ -15,6 +16,10 @@ ctx.onconnect = (event: MessageEvent) => {
             targetContext: port,
         }),
         methods: BMethods,
+    });
+
+    rpc.registerMethod('B.sharedData', () => {
+        return sharedData;
     });
     rpc.connect(2000).then(() => {
         rpc.invoke('A.add', [1, 2]).then((res) => {

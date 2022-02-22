@@ -19,4 +19,8 @@ import './style.css';
     rpc.invoke('B.now', null).then((res) => {
         console.log(`A invoke B.now result: ${res}`);
     });
+
+    rpc.invoke('B.sharedData', null).then((res) => {
+        console.log(`A invoke B.sharedData result: ${res}`);
+    });
 })();

@@ -1,6 +1,7 @@
 export interface RPCHandler {
     (...args: any[]): any;
 }
+
 export interface RPCEvent {
     emit(event: string, ...args: any[]): void;
     on(event: string, fn: RPCHandler): void;
@@ -12,11 +13,13 @@ export interface RPCEventData {
     event: string;
     args: any[];
 }
+
 export interface RPCMessageEventOptions {
     currentContext: Window | Worker | MessagePort;
     targetContext: Window | Worker | MessagePort;
     origin?: string;
 }
+
 export interface RPCInitOptions {
     event: RPCEvent;
     methods?: Record<string, RPCHandler>;
@@ -35,6 +38,7 @@ export interface RPCError {
     message: string;
     data: any;
 }
+
 export interface RPCSACKEvent {
     jsonrpc: '2.0';
     result: any;
@@ -42,6 +46,10 @@ export interface RPCSACKEvent {
     id?: string;
 }
 
+export interface RPCInvokeOptions {
+    isNotify: boolean;
+    timeout?: number;
+}
 export class RPCMessageEvent implements RPCEvent {
     static WorkerConstructorNames: Array<string> = [
         'DedicatedWorkerGlobalScope',
@@ -221,7 +229,11 @@ export class RPC {
         this._event.on(synEventName, synEventHandler);
     }
 
-    invoke(method: string, params: any, isNotify: boolean = false): Promise<any> {
+    invoke(
+        method: string,
+        params: any,
+        options: RPCInvokeOptions = { isNotify: false, timeout: 0 }
+    ): Promise<any> {
         return new Promise((resolve, reject) => {
             const synEventName = this._getSynEventName(method);
             const synEventId = RPC.uuid();
@@ -232,10 +244,23 @@ export class RPC {
                 id: synEventId,
             };
             this._event.emit(synEventName, synEventData);
-            if (!isNotify) {
+            if (!options.isNotify) {
                 const ackEventName = this._getAckEventName(method);
+                const timeout = options.timeout || this._timeout;
+                let timer: ReturnType<typeof setTimeout>;
+                if (timeout) {
+                    timer = setTimeout(() => {
+                        const error: RPCError = {
+                            code: 32300,
+                            message: 'invoke timeout',
+                            data: { timeout },
+                        };
+                        reject(error);
+                    }, timeout);
+                }
                 const ackEventHandler = (ackEventData: RPCSACKEvent) => {
                     if (ackEventData.id === synEventId) {
+                        clearTimeout(timer);
                         this._event.off(ackEventName, ackEventHandler);
                         if (!ackEventData.error) {
                             resolve(ackEventData.result);
@@ -245,6 +270,9 @@ export class RPC {
                     }
                 };
                 this._event.on(ackEventName, ackEventHandler);
+            } else {
+                // notify is not need ack
+                resolve(undefined);
             }
         });
     }
