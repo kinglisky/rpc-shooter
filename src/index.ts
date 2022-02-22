@@ -2,10 +2,16 @@ export interface RPCHandler {
     (...args: any[]): any;
 }
 
+export interface RPCError {
+    code: number;
+    message: string;
+    data: any;
+}
 export interface RPCEvent {
     emit(event: string, ...args: any[]): void;
     on(event: string, fn: RPCHandler): void;
     off(event: string, fn?: RPCHandler): void;
+    onerror: null | ((error: RPCError) => void);
     destroy?: () => void;
 }
 
@@ -33,12 +39,6 @@ export interface RPCSYNCEvent {
     id?: string;
 }
 
-export interface RPCError {
-    code: number;
-    message: string;
-    data: any;
-}
-
 export interface RPCSACKEvent {
     jsonrpc: '2.0';
     result: any;
@@ -63,6 +63,7 @@ export class RPCMessageEvent implements RPCEvent {
     private _origin: string;
     private _events: Record<string, Array<RPCHandler>>;
     private _receiveMessage: (event: MessageEvent) => void;
+    onerror: null | ((error: RPCError) => void) = null;
 
     constructor(options: RPCMessageEventOptions) {
         this._events = {};
@@ -75,7 +76,15 @@ export class RPCMessageEvent implements RPCEvent {
                 const eventHandlers = this._events[data.event] || [];
                 if (eventHandlers.length) {
                     eventHandlers.forEach((handler) => {
-                        handler(...data.args);
+                        handler(...(data.args || []));
+                    });
+                    return;
+                }
+                if (this.onerror) {
+                    this.onerror({
+                        code: -32601,
+                        message: `Method not found`,
+                        data,
                     });
                 }
             }
@@ -155,6 +164,9 @@ export class RPC {
                 this.registerMethod(method, handler);
             });
         }
+        this._event.onerror = (error) => {
+            console.log(error);
+        };
         this.connect();
     }
 
@@ -251,7 +263,7 @@ export class RPC {
                 if (timeout) {
                     timer = setTimeout(() => {
                         const error: RPCError = {
-                            code: 32300,
+                            code: -32300,
                             message: 'invoke timeout',
                             data: { timeout },
                         };
