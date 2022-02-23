@@ -31,7 +31,7 @@ export interface RPCMessageEventOptions {
           ) => any[])
         | any;
     beforeSend?: (data: RPCMessageEventFormat) => RPCMessageEventFormat;
-    beforeReceive?: (data: RPCMessageEventFormat) => RPCMessageEventFormat;
+    beforeReceive?: (event: MessageEvent) => RPCMessageEventFormat;
 }
 
 export class RPCMessageEvent implements RPCEvent {
@@ -49,7 +49,7 @@ export class RPCMessageEvent implements RPCEvent {
           ) => any[])
         | any;
     beforeSend?: (data: RPCMessageEventFormat) => RPCMessageEventFormat;
-    beforeReceive?: (data: RPCMessageEventFormat) => RPCMessageEventFormat;
+    beforeReceive?: (event: MessageEvent) => RPCMessageEventFormat;
 
     constructor(options: RPCMessageEventOptions) {
         this._events = {};
@@ -62,10 +62,9 @@ export class RPCMessageEvent implements RPCEvent {
         this.beforeSend = options.beforeSend;
 
         const receiveMessage = (event: MessageEvent) => {
-            const data = event.data as RPCMessageEventFormat;
             const receiveData = this.beforeReceive
-                ? this.beforeReceive(data)
-                : data;
+                ? this.beforeReceive(event)
+                : (event.data as RPCMessageEventFormat);
             if (typeof receiveData.event === 'string') {
                 const eventHandlers = this._events[receiveData.event] || [];
                 if (eventHandlers.length) {
@@ -78,7 +77,7 @@ export class RPCMessageEvent implements RPCEvent {
                     this.onerror({
                         code: -32601,
                         message: `Method not found`,
-                        data,
+                        data: receiveData,
                     });
                 }
             }
@@ -232,8 +231,8 @@ export class RPC {
             const connectSynEventName = this._getSynEventName(connectEventName);
             const resolveConnectEvent = () => {
                 clearTimeout(connectTimer);
-                this._event.off(connectSynEventName);
-                this._event.off(connectAckEventName);
+                // this._event.off(connectSynEventName);
+                // this._event.off(connectAckEventName);
                 resolve();
             };
             // listen connect ask event && resolve
