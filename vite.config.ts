@@ -30,7 +30,6 @@ const libConfig = {
         dts({
             include: ['src'],
             beforeWriteFile(filePath, content) {
-                console.log(filePath, content);
                 return {
                     filePath: filePath.replace(/src\\|\//, ''),
                     content,
