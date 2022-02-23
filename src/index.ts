@@ -7,6 +7,7 @@ export interface RPCError {
     message: string;
     data: any;
 }
+
 export interface RPCEvent {
     emit(event: string, ...args: any[]): void;
     on(event: string, fn: RPCHandler): void;
@@ -15,7 +16,7 @@ export interface RPCEvent {
     destroy?: () => void;
 }
 
-export interface RPCEventData {
+export interface RPCMessageEventFormat {
     event: string;
     args: any[];
 }
@@ -23,33 +24,16 @@ export interface RPCEventData {
 export interface RPCMessageEventOptions {
     currentContext: Window | Worker | MessagePort;
     targetContext: Window | Worker | MessagePort;
-    origin?: string;
+    postMessageConfig?:
+        | ((
+              data: RPCMessageEventFormat,
+              context: Window | Worker | MessagePort
+          ) => any[])
+        | any;
+    beforeSend?: (data: RPCMessageEventFormat) => RPCMessageEventFormat;
+    beforeReceive?: (data: RPCMessageEventFormat) => RPCMessageEventFormat;
 }
 
-export interface RPCInitOptions {
-    event: RPCEvent;
-    methods?: Record<string, RPCHandler>;
-    timeout?: number;
-}
-
-export interface RPCSYNCEvent {
-    jsonrpc: '2.0';
-    method: string;
-    params: any;
-    id?: string;
-}
-
-export interface RPCSACKEvent {
-    jsonrpc: '2.0';
-    result: any;
-    error?: RPCError;
-    id?: string;
-}
-
-export interface RPCInvokeOptions {
-    isNotify: boolean;
-    timeout?: number;
-}
 export class RPCMessageEvent implements RPCEvent {
     static WorkerConstructorNames: Array<string> = [
         'DedicatedWorkerGlobalScope',
@@ -59,24 +43,39 @@ export class RPCMessageEvent implements RPCEvent {
         'MessagePort',
     ];
     private _currentContext: Window | Worker | MessagePort;
-    private _targetContextContext: Window | Worker | MessagePort;
-    private _origin: string;
+    private _targetContext: Window | Worker | MessagePort;
     private _events: Record<string, Array<RPCHandler>>;
     private _receiveMessage: (event: MessageEvent) => void;
+
     onerror: null | ((error: RPCError) => void) = null;
+    postMessageConfig?:
+        | ((
+              data: RPCMessageEventFormat,
+              context: Window | Worker | MessagePort
+          ) => any[])
+        | any;
+    beforeSend?: (data: RPCMessageEventFormat) => RPCMessageEventFormat;
+    beforeReceive?: (data: RPCMessageEventFormat) => RPCMessageEventFormat;
 
     constructor(options: RPCMessageEventOptions) {
         this._events = {};
         this._currentContext = options.currentContext;
-        this._targetContextContext = options.targetContext;
-        this._origin = options.origin || '';
+        this._targetContext = options.targetContext;
+        // hooks
+        this.postMessageConfig = options.postMessageConfig;
+        this.beforeReceive = options.beforeReceive;
+        this.beforeSend = options.beforeSend;
+
         const receiveMessage = (event: MessageEvent) => {
-            const data = event.data as RPCEventData;
-            if (typeof data.event === 'string') {
-                const eventHandlers = this._events[data.event] || [];
+            const data = event.data as RPCMessageEventFormat;
+            const receiveData = this.beforeReceive
+                ? this.beforeReceive(data)
+                : data;
+            if (typeof receiveData.event === 'string') {
+                const eventHandlers = this._events[receiveData.event] || [];
                 if (eventHandlers.length) {
                     eventHandlers.forEach((handler) => {
-                        handler(...(data.args || []));
+                        handler(...(receiveData.args || []));
                     });
                     return;
                 }
@@ -98,20 +97,20 @@ export class RPCMessageEvent implements RPCEvent {
     }
 
     emit(event: string, ...args: any[]): void {
-        const data = {
+        const data: RPCMessageEventFormat = {
             event,
             args,
         };
-        // in worker
-        if (
-            RPCMessageEvent.WorkerConstructorNames.includes(
-                this._targetContextContext.constructor.name
-            )
-        ) {
-            this._targetContextContext.postMessage(data);
-            return;
-        }
-        (this._targetContextContext as Window).postMessage(data, this._origin);
+        const sendData = this.beforeSend ? this.beforeSend(data) : data;
+        const { postMessageConfig } = this;
+        const configs = this.postMessageConfig
+            ? typeof postMessageConfig === 'function'
+                ? postMessageConfig(sendData, this._targetContext)
+                : Array.isArray(postMessageConfig)
+                ? postMessageConfig
+                : [postMessageConfig]
+            : [];
+        this._targetContext.postMessage(sendData, ...configs);
     }
 
     on(event: string, fn: RPCHandler): void {
@@ -137,6 +136,31 @@ export class RPCMessageEvent implements RPCEvent {
             false
         );
     }
+}
+
+export interface RPCInitOptions {
+    event: RPCEvent;
+    methods?: Record<string, RPCHandler>;
+    timeout?: number;
+}
+
+export interface RPCSYNCEvent {
+    jsonrpc: '2.0';
+    method: string;
+    params: any;
+    id?: string;
+}
+
+export interface RPCSACKEvent {
+    jsonrpc: '2.0';
+    result: any;
+    error?: RPCError;
+    id?: string;
+}
+
+export interface RPCInvokeOptions {
+    isNotify: boolean;
+    timeout?: number;
 }
 
 export class RPC {

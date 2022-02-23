@@ -7,7 +7,6 @@ import './style.css';
         event: new RPCMessageEvent({
             currentContext: window,
             targetContext: window.top,
-            origin: '*',
         }),
         methods: BMethods,
     });
