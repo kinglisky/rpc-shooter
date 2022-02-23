@@ -15,7 +15,11 @@ import './style.css';
     });
     await rpc.connect(2000);
     console.log('rpc connected');
-    rpc.invoke('B.now', null).then((res) => {
+    await rpc.invoke('B.now', null).then((res) => {
         console.log(`A invoke B.now result: ${res}`);
+    });
+    // not found method
+    await rpc.invoke('C.now', null).then((res) => {
+        console.log(`A invoke C.now result: ${res}`);
     });
 })();

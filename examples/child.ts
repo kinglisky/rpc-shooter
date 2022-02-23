@@ -14,4 +14,8 @@ import './style.css';
     rpc.invoke('A.add', [1, 2]).then((res) => {
         console.log(`B invoke A.add result: ${res}`);
     });
+
+    rpc.invoke('C.add', [1, 2]).then((res) => {
+        console.log(`B invoke C.add result: ${res}`);
+    });
 })();

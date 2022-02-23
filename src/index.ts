@@ -25,14 +25,26 @@ export interface RPCMessageEventOptions {
     currentContext: Window | Worker | MessagePort;
     targetContext: Window | Worker | MessagePort;
     postMessageConfig?:
-        | ((
-              data: RPCMessageEventFormat,
-              context: Window | Worker | MessagePort
-          ) => any[])
+        | ((data: RPCMessageEventFormat, context: Window | Worker | MessagePort) => any[])
         | any;
     beforeSend?: (data: RPCMessageEventFormat) => RPCMessageEventFormat;
     beforeReceive?: (event: MessageEvent) => RPCMessageEventFormat;
 }
+
+export const RPCCodes: Record<string, Pick<RPCError, 'code' | 'message'>> = {
+    CONNECT_TIMEOUT: {
+        code: -32300,
+        message: 'Connect timeout',
+    },
+    APPLICATION_ERROR: {
+        code: -32500,
+        message: 'Application error',
+    },
+    METHOD_NOT_FOUND: {
+        code: -32601,
+        message: `Method not found`,
+    },
+};
 
 export class RPCMessageEvent implements RPCEvent {
     private _currentContext: Window | Worker | MessagePort;
@@ -43,10 +55,7 @@ export class RPCMessageEvent implements RPCEvent {
 
     onerror: null | ((error: RPCError) => void) = null;
     postMessageConfig?:
-        | ((
-              data: RPCMessageEventFormat,
-              context: Window | Worker | MessagePort
-          ) => any[])
+        | ((data: RPCMessageEventFormat, context: Window | Worker | MessagePort) => any[])
         | any;
     beforeSend?: (data: RPCMessageEventFormat) => RPCMessageEventFormat;
     beforeReceive?: (event: MessageEvent) => RPCMessageEventFormat;
@@ -73,10 +82,10 @@ export class RPCMessageEvent implements RPCEvent {
                     });
                     return;
                 }
+                // method not found
                 if (this.onerror) {
                     this.onerror({
-                        code: -32601,
-                        message: `Method not found`,
+                        ...RPCCodes.METHOD_NOT_FOUND,
                         data: receiveData,
                     });
                 }
@@ -150,7 +159,7 @@ export interface RPCInitOptions {
     timeout?: number;
 }
 
-export interface RPCSYNCEvent {
+export interface RPCSYNEvent {
     jsonrpc: '2.0';
     method: string;
     params: any;
@@ -159,7 +168,7 @@ export interface RPCSYNCEvent {
 
 export interface RPCSACKEvent {
     jsonrpc: '2.0';
-    result: any;
+    result?: any;
     error?: RPCError;
     id?: string;
 }
@@ -178,6 +187,8 @@ export class RPC {
 
     private _$connect: Promise<void> | null = null;
 
+    static CODES = RPCCodes;
+
     static uuid(): string {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
             const r = (Math.random() * 16) | 0;
@@ -195,7 +206,23 @@ export class RPC {
             });
         }
         this._event.onerror = (error) => {
-            console.log(error);
+            const { code, message, data } = error;
+            if (data.event && Array.isArray(data.args) && data.args.length) {
+                const synEventData = data.args[0] as RPCSYNEvent;
+                const ackEventName = this._getAckEventName(synEventData.method);
+                const ackEventData: RPCSACKEvent = {
+                    jsonrpc: '2.0',
+                    id: synEventData?.id,
+                    error: {
+                        code,
+                        message,
+                        data: synEventData,
+                    },
+                };
+                this._event.emit(ackEventName, ackEventData);
+            } else {
+                console.error(error);
+            }
         };
         this.connect();
     }
@@ -219,8 +246,7 @@ export class RPC {
             if (connectTimeout) {
                 connectTimer = setTimeout(() => {
                     const error: RPCError = {
-                        code: 32300,
-                        message: 'connect timeout',
+                        ...RPCCodes.TIMEOUT,
                         data: { timeout: connectTimeout },
                     };
                     reject(error);
@@ -256,17 +282,29 @@ export class RPC {
         }
         this._methods[method] = handler;
         const synEventName = this._getSynEventName(method);
-        const synEventHandler = (synEventData: RPCSYNCEvent) => {
-            Promise.resolve(handler(synEventData.params)).then((result) => {
-                const ackEventName = this._getAckEventName(method);
-                const ackEventData: RPCSACKEvent = {
-                    jsonrpc: '2.0',
-                    result,
-                    id: synEventData.id,
-                };
-                this._event.emit(ackEventName, ackEventData);
-                this._event.off(synEventName, synEventHandler);
-            });
+        const synEventHandler = (synEventData: RPCSYNEvent) => {
+            const ackEventName = this._getAckEventName(method);
+            Promise.resolve(handler(synEventData.params))
+                .then((result) => {
+                    const ackEventData: RPCSACKEvent = {
+                        jsonrpc: '2.0',
+                        result,
+                        id: synEventData.id,
+                    };
+                    this._event.emit(ackEventName, ackEventData);
+                })
+                .catch((error) => {
+                    const ackEventData: RPCSACKEvent = {
+                        jsonrpc: '2.0',
+                        id: synEventData.id,
+                        error: {
+                            code: error?.code || RPCCodes.APPLICATION_ERROR.code,
+                            message: error?.message || RPCCodes.APPLICATION_ERROR.message,
+                            data: null,
+                        },
+                    };
+                    this._event.emit(ackEventName, ackEventData);
+                });
         };
         this._event.on(synEventName, synEventHandler);
     }
@@ -279,7 +317,7 @@ export class RPC {
         return new Promise((resolve, reject) => {
             const synEventName = this._getSynEventName(method);
             const synEventId = RPC.uuid();
-            const synEventData: RPCSYNCEvent = {
+            const synEventData: RPCSYNEvent = {
                 jsonrpc: '2.0',
                 method,
                 params,
@@ -293,8 +331,7 @@ export class RPC {
                 if (timeout) {
                     timer = setTimeout(() => {
                         const error: RPCError = {
-                            code: -32300,
-                            message: 'invoke timeout',
+                            ...RPCCodes.CONNECT_TIMEOUT,
                             data: { timeout },
                         };
                         reject(error);
