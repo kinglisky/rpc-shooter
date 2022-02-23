@@ -35,16 +35,10 @@ export interface RPCMessageEventOptions {
 }
 
 export class RPCMessageEvent implements RPCEvent {
-    static WorkerConstructorNames: Array<string> = [
-        'DedicatedWorkerGlobalScope',
-        'SharedWorkerGlobalScope',
-        'Worker',
-        'SharedWorker',
-        'MessagePort',
-    ];
     private _currentContext: Window | Worker | MessagePort;
     private _targetContext: Window | Worker | MessagePort;
     private _events: Record<string, Array<RPCHandler>>;
+    private _originOnmessage: ((event: MessageEvent) => void) | null;
     private _receiveMessage: (event: MessageEvent) => void;
 
     onerror: null | ((error: RPCError) => void) = null;
@@ -61,6 +55,7 @@ export class RPCMessageEvent implements RPCEvent {
         this._events = {};
         this._currentContext = options.currentContext;
         this._targetContext = options.targetContext;
+        this._originOnmessage = null;
         // hooks
         this.postMessageConfig = options.postMessageConfig;
         this.beforeReceive = options.beforeReceive;
@@ -88,12 +83,18 @@ export class RPCMessageEvent implements RPCEvent {
                 }
             }
         };
-        this._currentContext.addEventListener(
-            'message',
-            receiveMessage as EventListenerOrEventListenerObject,
-            false
-        );
         this._receiveMessage = receiveMessage;
+        if (this._currentContext.addEventListener) {
+            this._currentContext.addEventListener(
+                'message',
+                this._receiveMessage as EventListenerOrEventListenerObject,
+                false
+            );
+        } else {
+            // some plugine env don't support addEventListener（link figma.ui）
+            this._originOnmessage = this._currentContext.onmessage;
+            this._currentContext.onmessage = receiveMessage;
+        }
     }
 
     emit(event: string, ...args: any[]): void {
@@ -130,11 +131,17 @@ export class RPCMessageEvent implements RPCEvent {
     }
 
     destroy(): void {
-        this._currentContext.removeEventListener(
-            'message',
-            this._receiveMessage as EventListenerOrEventListenerObject,
-            false
-        );
+        if (this._currentContext.removeEventListener) {
+            this._currentContext.removeEventListener(
+                'message',
+                this._receiveMessage as EventListenerOrEventListenerObject,
+                false
+            );
+        } else {
+            if (this._originOnmessage) {
+                this._currentContext.onmessage = this._originOnmessage;
+            }
+        }
     }
 }
 
