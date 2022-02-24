@@ -24,10 +24,8 @@ export interface RPCMessageEventFormat {
 export interface RPCMessageEventOptions {
     currentContext: Window | Worker | MessagePort;
     targetContext: Window | Worker | MessagePort;
-    postMessageConfig?:
-        | ((data: RPCMessageEventFormat, context: Window | Worker | MessagePort) => any[])
-        | any;
-    beforeSend?: (data: RPCMessageEventFormat) => RPCMessageEventFormat;
+    postMessageConfig?: ((data: any, context: Window | Worker | MessagePort) => any[]) | any;
+    beforeSend?: (data: RPCMessageEventFormat) => any;
     beforeReceive?: (event: MessageEvent) => RPCMessageEventFormat;
 }
 
@@ -54,10 +52,8 @@ export class RPCMessageEvent implements RPCEvent {
     private _receiveMessage: (event: MessageEvent) => void;
 
     onerror: null | ((error: RPCError) => void) = null;
-    postMessageConfig?:
-        | ((data: RPCMessageEventFormat, context: Window | Worker | MessagePort) => any[])
-        | any;
-    beforeSend?: (data: RPCMessageEventFormat) => RPCMessageEventFormat;
+    postMessageConfig?: ((data: any, context: Window | Worker | MessagePort) => any[]) | any;
+    beforeSend?: (data: RPCMessageEventFormat) => any;
     beforeReceive?: (event: MessageEvent) => RPCMessageEventFormat;
 
     constructor(options: RPCMessageEventOptions) {
@@ -288,6 +284,11 @@ export class RPC {
         const synEventName = this._getSynEventName(method);
         const synEventHandler = (synEventData: RPCSYNEvent) => {
             const ackEventName = this._getAckEventName(method);
+            // notify not need ack
+            if (!synEventData.id) {
+                handler(synEventData.params);
+                return;
+            }
             Promise.resolve(handler(synEventData.params))
                 .then((result) => {
                     const ackEventData: RPCSACKEvent = {
