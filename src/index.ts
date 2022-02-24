@@ -21,10 +21,17 @@ export interface RPCMessageEventFormat {
     args: any[];
 }
 
+export interface RPCPostMessageParams {
+    data?: any;
+    targetOrigin?: unknown;
+    transferList?: Transferable[];
+}
 export interface RPCMessageEventOptions {
     currentContext: Window | Worker | MessagePort;
     targetContext: Window | Worker | MessagePort;
-    postMessageConfig?: ((data: any, context: Window | Worker | MessagePort) => any[]) | any;
+    postMessageConfig?:
+        | ((data: any, context: Window | Worker | MessagePort) => RPCPostMessageParams)
+        | RPCPostMessageParams;
     beforeSend?: (data: RPCMessageEventFormat) => any;
     beforeReceive?: (event: MessageEvent) => RPCMessageEventFormat;
 }
@@ -45,6 +52,13 @@ export const RPCCodes: Record<string, Pick<RPCError, 'code' | 'message'>> = {
 };
 
 export class RPCMessageEvent implements RPCEvent {
+    static WorkerConstructorNames: Array<string> = [
+        'DedicatedWorkerGlobalScope',
+        'SharedWorkerGlobalScope',
+        'Worker',
+        'SharedWorker',
+        'MessagePort',
+    ];
     private _currentContext: Window | Worker | MessagePort;
     private _targetContext: Window | Worker | MessagePort;
     private _events: Record<string, Array<RPCHandler>>;
@@ -114,14 +128,28 @@ export class RPCMessageEvent implements RPCEvent {
         };
         const sendData = this.beforeSend ? this.beforeSend(data) : data;
         const { postMessageConfig } = this;
-        const configs = this.postMessageConfig
+        const config = this.postMessageConfig
             ? typeof postMessageConfig === 'function'
                 ? postMessageConfig(sendData, this._targetContext)
-                : Array.isArray(postMessageConfig)
-                ? postMessageConfig
-                : [postMessageConfig]
-            : [];
-        this._targetContext.postMessage(sendData, ...configs);
+                : postMessageConfig
+            : {};
+        const postData = config.data || sendData;
+        const postArgs = [];
+        // in worker env
+        if (RPCMessageEvent.WorkerConstructorNames.includes(this._targetContext.constructor.name)) {
+            if (Array.isArray(config.transferList) && config.transferList.length) {
+                postArgs.push(config.transferList);
+            }
+            this._targetContext.postMessage(postData, ...postArgs);
+            return;
+        }
+        if (config.targetOrigin) {
+            postArgs.push(config.targetOrigin);
+        }
+        if (Array.isArray(config.transferList) && config.transferList.length) {
+            postArgs.push(config.transferList);
+        }
+        this._targetContext.postMessage(postData, ...postArgs);
     }
 
     on(event: string, fn: RPCHandler): void {

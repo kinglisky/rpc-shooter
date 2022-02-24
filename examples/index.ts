@@ -9,7 +9,7 @@ import './style.css';
         event: new RPCMessageEvent({
             currentContext: window,
             targetContext: iframe.contentWindow!,
-            postMessageConfig: '*',
+            postMessageConfig: { targetOrigin: '*' },
         }),
         methods: AMethods,
     });
