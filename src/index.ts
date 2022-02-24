@@ -91,17 +91,23 @@ export class RPCMessageEvent implements RPCEvent {
                 }
             }
         };
-        this._receiveMessage = receiveMessage;
         if (this._currentContext.addEventListener) {
             this._currentContext.addEventListener(
                 'message',
-                this._receiveMessage as EventListenerOrEventListenerObject,
+                receiveMessage as EventListenerOrEventListenerObject,
                 false
             );
+            this._receiveMessage = receiveMessage;
         } else {
-            // some plugine env don't support addEventListener（link figma.ui）
+            // some plugine env don't support addEventListener（like figma.ui)
             this._originOnmessage = this._currentContext.onmessage;
-            this._currentContext.onmessage = receiveMessage;
+            this._currentContext.onmessage = (event: MessageEvent) => {
+                if (this._originOnmessage) {
+                    this._originOnmessage(event);
+                }
+                receiveMessage(event);
+            };
+            this._receiveMessage = this._currentContext.onmessage;
         }
     }
 
@@ -146,9 +152,7 @@ export class RPCMessageEvent implements RPCEvent {
                 false
             );
         } else {
-            if (this._originOnmessage) {
-                this._currentContext.onmessage = this._originOnmessage;
-            }
+            this._currentContext.onmessage = this._originOnmessage;
         }
     }
 }

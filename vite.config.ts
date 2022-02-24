@@ -31,7 +31,7 @@ const libConfig = {
             include: ['src'],
             beforeWriteFile(filePath, content) {
                 return {
-                    filePath: filePath.replace(/src\\|\//, ''),
+                    filePath: filePath.replace(/src(\/|\\)/, ''),
                     content,
                 };
             },
