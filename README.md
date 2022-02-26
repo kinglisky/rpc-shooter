@@ -1,6 +1,8 @@
-A JSON-RPC library of tools for handling communication between services
+# rpc-shooter
 
-基于 [JSON-RPC 2.0](https://wiki.geekdream.com/Specification/json-rpc_2.0.html) 规范的远程服务调用库。
+A tool library for handling window && iframe && worker communication based on the JSON RPC specification
+
+一个基于 [JSON-RPC](https://wiki.geekdream.com/Specification/json-rpc_2.0.html) 规范用于处理 window && iframe && worker 通讯的工具库
 
 ## 为什么要写这个工具？
 
@@ -13,10 +15,10 @@ iframe 中的服务调用
 const childWindow = document.querySelector('iframe').contentWindow;
 window.addEventListener('message', function (event) {
     const data = event.data;
-    if (data.event === 'do_someting') {
+    if (data.event === 'do_something') {
         // ... handle iframe data
         childWindow.postMessage({
-            event: 're:do_someting',
+            event: 're:do_something',
             data: 'some data',
         });
     }
@@ -25,14 +27,14 @@ window.addEventListener('message', function (event) {
 // iframe.js
 window.top.postMessage(
     {
-        event: 'do_someting',
+        event: 'do_something',
         data: 'ifame data',
     },
     '*'
 );
 window.addEventListener('message', function (event) {
     const data = event.data;
-    if (data.event === 're:do_someting') {
+    if (data.event === 're:do_something') {
         // ... handle parent data
     }
 });
@@ -45,10 +47,10 @@ worker 服务调用
 const worker = new Worker('worker.js');
 worker.addEventListener('message', function (event) {
     const data = event.data;
-    if (data.event === 'do_someting') {
+    if (data.event === 'do_something') {
         // ... handle worker data
         worker.postMessage({
-            event: 're:do_someting',
+            event: 're:do_something',
             data: 'some data',
         });
     }
@@ -56,29 +58,27 @@ worker.addEventListener('message', function (event) {
 
 // worker.js
 self.postMessage({
-    event: 'do_someting',
+    event: 'do_something',
     data: 'worker data',
 });
 self.addEventListener('message', function (event) {
     const data = event.data;
-    if (data.event === 're:do_someting') {
+    if (data.event === 're:do_something') {
         // ... handle parent data
     }
 });
 ```
 
-上述的方式可以处理简单的事件通信，但针对复杂场景下跨页面（进程）通信，或者说是服务调用则需要一个简单的有效的处理方式，如果可以封装成异步函数调用方式，则会优雅很多，如下：
+上述的方式可以处理简单的事件通信，但针对复杂场景下跨页面（进程）通信需要一个简单的有效的处理方式，如果可以封装成异步函数调用方式，则会优雅很多，如下：
 
 ```javascript
 // parent.js
 const parentRPC = new RPC({...});
-parentRPC.registerMethod('parent.do_sometion', (data) => {
-    // handle data && return
+parentRPC.registerMethod('parent.do_something', (data) => {
     return Promise.resolve({...});
 });
-parentRPC.invoke('child.do_sometion', { data: 'xxx' })
+parentRPC.invoke('child.do_something', { data: 'xxx' })
     .then(res => {
-        // get child data
         console.error(res);
     })
     .catch(error => {
@@ -87,13 +87,11 @@ parentRPC.invoke('child.do_sometion', { data: 'xxx' })
 
 // child.js
 const childRPC = new RPC({...});
-childRPC.registerMethod('child.do_sometion', (data) => {
-    // handle data && return
+childRPC.registerMethod('child.do_something', (data) => {
     return Promise.resolve({...});
 });
-childRPC.invoke('parent.do_sometion', { data: 'xxx' })
+childRPC.invoke('parent.do_something', { data: 'xxx' })
     .then(res => {
-        // get parent data
         console.error(res);
     })
     .catch(error => {
@@ -101,18 +99,68 @@ childRPC.invoke('parent.do_sometion', { data: 'xxx' })
     });
 ```
 
-[JSON-RPC 2.0](https://wiki.geekdream.com/Specification/json-rpc_2.0.html) 规范很简单也很适合描述两个服务间调用，于是基于 JSON-RPC （用来描述服务间传递的数据格式）封装了一个用于 iframe 与 worker 服务调用的工具库。
+使用 [JSON-RPC 2.0](https://wiki.geekdream.com/Specification/json-rpc_2.0.html) 规范可以很简单的描述两个服务间的调用，`rpc-shooter` 中两个服务间通讯的数据格式就是使用 JSON-RPC 描述的。
 
-## 使用
-
-### 安装
+## 安装
 
 ```bash
-yarn add rpc-shooter -S
+yarn add rpc-shooter
 # or
 npm i rpc-shooter -S
 ```
 
-### 使用
+## 使用
 
-<!-- 明天写~ -->
+### iframe 通讯
+
+```ts
+// main.ts
+import { RPCMessageEvent, RPC } from '@rpc-shooter';
+
+(async function () {
+    const iframe = document.querySelector('iframe')!;
+    const rpc = new RPC({
+        event: new RPCMessageEvent({
+            currentContext: window,
+            targetContext: iframe.contentWindow!,
+            postMessageConfig: { targetOrigin: '*' },
+        }),
+        // 初始化时注册处理函数
+        methods: {
+            'Main.max': (a: number, b: number) => Math.max(a, b),
+        },
+    });
+    // 动态注册处理函数
+    rpc.registerMethod('Main.min', (a: number, b: number) => {
+        return Promise.resolve(Math.min(a, b));
+    });
+
+    // 检查链接，配置超时时间
+    await rpc.connect(2000);
+
+    // 调用 iframe 服务中的注册方法
+    const randomValue = await rpc.invoke('Child.random', null, { isNotify: false, timeout: 2000 });
+    console.log(`Main invoke Child.random result: ${randomValue}`);
+})();
+```
+
+```ts
+// child.ts
+import { RPCMessageEvent, RPC } from '@rpc-shooter';
+(async function () {
+    const rpc = new RPC({
+        event: new RPCMessageEvent({
+            currentContext: window,
+            targetContext: window.top,
+        }),
+    });
+
+    rpc.registerMethod('Child.random', () => Math.random());
+
+    await rpc.connect(2000);
+
+    const max = await rpc.invoke('Main.max', [1, 2]);
+    const min = await rpc.invoke('Main.min', [1, 2]);
+    console.log({ max, min });
+})();
+```

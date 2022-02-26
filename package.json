@@ -1,7 +1,7 @@
 {
     "name": "rpc-shooter",
     "private": false,
-    "version": "0.0.2",
+    "version": "0.0.3",
     "files": [
         "lib",
         "src"
@@ -26,7 +26,7 @@
         "vite": "^2.8.0",
         "vite-plugin-dts": "^0.9.9"
     },
-    "description": "A JSON-RPC library of tools for handling communication between services",
+    "description": "A tool library for handling Iframe && worker communication based on the JSON RPC specification",
     "directories": {
         "example": "examples",
         "lib": "lib"

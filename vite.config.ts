@@ -11,6 +11,8 @@ const exampleConfig = {
                 index: resolve(__dirname, './examples/index.html'),
                 child: resolve(__dirname, './examples/child.html'),
                 worker: resolve(__dirname, './examples/worker.html'),
+                window1: resolve(__dirname, './examples/window1.html'),
+                window2: resolve(__dirname, './examples/window2.html'),
             },
         },
     },
