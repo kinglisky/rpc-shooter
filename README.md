@@ -111,7 +111,7 @@ npm i rpc-shooter -S
 
 ## 使用
 
-### iframe 通讯
+### iframe
 
 ```ts
 // main.ts
@@ -163,4 +163,139 @@ import { RPCMessageEvent, RPC } from '@rpc-shooter';
     const min = await rpc.invoke('Main.min', [1, 2]);
     console.log({ max, min });
 })();
+```
+
+### window
+
+```ts
+// main.ts
+import { RPCMessageEvent, RPC } from '@rpc-shooter';
+(async function () {
+    const openNewWindow = (path: string) => {
+        return window.open(path, '_blank');
+    };
+    const newWindow = openNewWindow('new-window.html');
+    const rpc = new RPC({
+        event: new RPCMessageEvent({
+            currentContext: window,
+            targetContext: newWindow,
+            postMessageConfig: { targetOrigin: '*' },
+        }),
+    });
+    rpc.registerMethod('Main.max', (a: number, b: number) => {
+        return Promise.resolve(Math.max(a, b));
+    });
+    await rpc.connect(2000);
+    await rpc.invoke('Child.random', null);
+})();
+```
+
+```ts
+// child.ts
+import { RPCMessageEvent, RPC } from '@rpc-shooter';
+(async function () {
+    const rpc = new RPC({
+        event: new RPCMessageEvent({
+            currentContext: window,
+            targetContext: window.opener,
+        }),
+    });
+    rpc.registerMethod('Child.random', () => Math.random());
+
+    await rpc.connect(2000);
+
+    await rpc.invoke('Main.max', [1, 2]);
+})();
+```
+
+### Web Worker
+
+```ts
+// main.ts
+import { RPCMessageEvent, RPC } from '@rpc-shooter';
+
+(async function () {
+    const worker = new Worker('./slef.worker.ts');
+    const rpc = new RPC({
+        event: new RPCMessageEvent({
+            currentContext: worker,
+            targetContext: worker,
+        }),
+    });
+    rpc.registerMethod('Main.max', (a: number, b: number) => {
+        return Promise.resolve(Math.max(a, b));
+    });
+    await rpc.connect(2000);
+    await rpc.invoke('Child.random', null);
+})();
+```
+
+```ts
+// child.ts
+import { RPCMessageEvent, RPC } from '@rpc-shooter';
+
+(async function () {
+    const ctx: Worker = self as any;
+    const rpc = new RPC({
+        event: new RPCMessageEvent({
+            currentContext: ctx,
+            targetContext: ctx,
+        }),
+    });
+    rpc.registerMethod('Child.random', () => Math.random());
+
+    await rpc.connect(2000);
+
+    await rpc.invoke('Main.max', [1, 2]);
+})();
+```
+
+### Shared Worker
+
+```ts
+// main.ts
+import { RPCMessageEvent, RPC } from '@rpc-shooter';
+
+(async function () {
+    const worker: SharedWorker = new SharedWorker('./shared.worker.ts');
+    worker.port.start();
+    const rpc = new RPC({
+        event: new RPCMessageEvent({
+            currentContext: worker.port,
+            targetContext: worker.port,
+        }),
+    });
+    rpc.registerMethod('Main.max', (a: number, b: number) => {
+        return Promise.resolve(Math.max(a, b));
+    });
+    await rpc.connect(2000);
+    await rpc.invoke('Child.random', null);
+})();
+```
+
+```ts
+// child.ts
+import { RPCMessageEvent, RPC } from '@rpc-shooter';
+
+interface SharedWorkerGlobalScope {
+    onconnect: (event: MessageEvent) => void;
+}
+
+const ctx: SharedWorkerGlobalScope = self as any;
+
+ctx.onconnect = async (event: MessageEvent) => {
+    const port = event.ports[0];
+    port.start();
+    const rpc = new RPC({
+        event: new RPCMessageEvent({
+            currentContext: port,
+            targetContext: port,
+        }),
+    });
+    rpc.registerMethod('Child.random', () => Math.random());
+
+    await rpc.connect(2000);
+
+    await rpc.invoke('Main.max', [1, 2]);
+};
 ```
