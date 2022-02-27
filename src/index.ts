@@ -130,7 +130,7 @@ export class RPCMessageEvent implements RPCEvent {
         const { postMessageConfig } = this;
         const config = this.postMessageConfig
             ? typeof postMessageConfig === 'function'
-                ? postMessageConfig(sendData, this._targetContext)
+                ? postMessageConfig(sendData, this._targetContext) || {}
                 : postMessageConfig
             : {};
         const postData = config.data || sendData;
@@ -149,6 +149,7 @@ export class RPCMessageEvent implements RPCEvent {
         if (Array.isArray(config.transferList) && config.transferList.length) {
             postArgs.push(config.transferList);
         }
+        // in window env
         this._targetContext.postMessage(postData, ...postArgs);
     }
 

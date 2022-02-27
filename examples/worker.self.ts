@@ -28,7 +28,16 @@ function toGray(data: ImageData): ImageData {
     return data;
 }
 
-rpc.registerMethod('B.toGray', toGray);
+function getImageData(data: ImageBitmap) {
+    const canvas = new OffscreenCanvas(data.width, data.height);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(data, 0, 0);
+    return ctx.getImageData(0, 0, data.width, data.height);
+}
+
+rpc.registerMethod('B.toGray', (data) => {
+    return toGray(getImageData(data));
+});
 
 rpc.invoke('A.add', [1, 2]).then((res) => {
     console.log(`B invoke A.add result: ${res}`);

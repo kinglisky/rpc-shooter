@@ -115,7 +115,7 @@ npm i rpc-shooter -S
 
 ```ts
 // main.ts
-import { RPCMessageEvent, RPC } from '@rpc-shooter';
+import { RPCMessageEvent, RPC } from 'rpc-shooter';
 
 (async function () {
     const iframe = document.querySelector('iframe')!;
@@ -146,7 +146,7 @@ import { RPCMessageEvent, RPC } from '@rpc-shooter';
 
 ```ts
 // child.ts
-import { RPCMessageEvent, RPC } from '@rpc-shooter';
+import { RPCMessageEvent, RPC } from 'rpc-shooter';
 (async function () {
     const rpc = new RPC({
         event: new RPCMessageEvent({
@@ -169,7 +169,7 @@ import { RPCMessageEvent, RPC } from '@rpc-shooter';
 
 ```ts
 // main.ts
-import { RPCMessageEvent, RPC } from '@rpc-shooter';
+import { RPCMessageEvent, RPC } from 'rpc-shooter';
 (async function () {
     const openNewWindow = (path: string) => {
         return window.open(path, '_blank');
@@ -192,7 +192,7 @@ import { RPCMessageEvent, RPC } from '@rpc-shooter';
 
 ```ts
 // child.ts
-import { RPCMessageEvent, RPC } from '@rpc-shooter';
+import { RPCMessageEvent, RPC } from 'rpc-shooter';
 (async function () {
     const rpc = new RPC({
         event: new RPCMessageEvent({
@@ -212,7 +212,7 @@ import { RPCMessageEvent, RPC } from '@rpc-shooter';
 
 ```ts
 // main.ts
-import { RPCMessageEvent, RPC } from '@rpc-shooter';
+import { RPCMessageEvent, RPC } from 'rpc-shooter';
 
 (async function () {
     const worker = new Worker('./slef.worker.ts');
@@ -232,7 +232,7 @@ import { RPCMessageEvent, RPC } from '@rpc-shooter';
 
 ```ts
 // child.ts
-import { RPCMessageEvent, RPC } from '@rpc-shooter';
+import { RPCMessageEvent, RPC } from 'rpc-shooter';
 
 (async function () {
     const ctx: Worker = self as any;
@@ -254,7 +254,7 @@ import { RPCMessageEvent, RPC } from '@rpc-shooter';
 
 ```ts
 // main.ts
-import { RPCMessageEvent, RPC } from '@rpc-shooter';
+import { RPCMessageEvent, RPC } from 'rpc-shooter';
 
 (async function () {
     const worker: SharedWorker = new SharedWorker('./shared.worker.ts');
@@ -275,7 +275,7 @@ import { RPCMessageEvent, RPC } from '@rpc-shooter';
 
 ```ts
 // child.ts
-import { RPCMessageEvent, RPC } from '@rpc-shooter';
+import { RPCMessageEvent, RPC } from 'rpc-shooter';
 
 interface SharedWorkerGlobalScope {
     onconnect: (event: MessageEvent) => void;
@@ -298,4 +298,260 @@ ctx.onconnect = async (event: MessageEvent) => {
 
     await rpc.invoke('Main.max', [1, 2]);
 };
+```
+
+## 配置项
+
+`rpc-shooter` 由核心两个模块组成：
+
+-   RPCMessageEvent 用于两个通信上下文（window | iframe | worker）的事件交互
+-   RPC 对 `RPCMessageEvent` 事件交互进行封装，提供方法注册与调用
+
+### RPC
+
+```ts
+const RPCInitOptions = {};
+const rpc = new RPC(RPCInitOptions);
+// 动态注册处理函数
+rpc.registerMethod('Main.min', (a: number, b: number) => {
+    return Promise.resolve(Math.min(a, b));
+});
+// 检查链接，配置超时时间
+await rpc.connect(2000);
+// 调用 iframe 服务中的注册方法
+const value = await rpc.invoke('Child.random', null, { isNotify: false, timeout: 2000 });
+```
+
+#### RPC Options
+
+```ts
+interface RPCEvent {
+    emit(event: string, ...args: any[]): void;
+    on(event: string, fn: RPCHandler): void;
+    off(event: string, fn?: RPCHandler): void;
+    onerror: null | ((error: RPCError) => void);
+    destroy?: () => void;
+}
+
+interface RPCHandler {
+    (...args: any[]): any;
+}
+
+interface RPCInitOptions {
+    event: RPCEvent;
+    methods?: Record<string, RPCHandler>;
+    timeout?: number;
+}
+```
+
+| 参数    | 类型                              | 说明                                                                              |
+| :------ | :-------------------------------- | :-------------------------------------------------------------------------------- |
+| event   | 必填 `RPCEvent`                   | 用于服务间通信的事件模块，可参考 `RPCMessageEvent` 实现，满足 `RPCEvent` 接口即可 |
+| methods | 必填 `Record<string, RPCHandler>` | 由于注册当前服务可调用的方法                                                      |
+| timeout | 可选 `number`                     | 方法调用的全局超时时间，为 0 则不设置超时时间                                     |
+
+#### RPC Methods
+
+| 方法           | 说明             |
+| :------------- | :--------------- |
+| connect        | 用于检测链接状态 |
+| registerMethod | 动态注册调用方法 |
+| invoke         | 调用远程服务     |
+
+**connect**
+
+```ts
+connect(timeout?: number): Promise<void>;
+```
+
+timeout 超时设置，会覆盖全局设置
+
+**registerMethod**
+
+```ts
+registerMethod(method: string, handler: RPCHandler);
+```
+
+动态注册调用方法
+
+**invoke**
+
+```ts
+invoke(
+    method: string,
+    params: any,
+    options: RPCInvokeOptions = { isNotify: false, timeout: 0 }
+): Promise<any>;
+```
+
+调用远程服务
+
+-   method `string` 方法名
+-   params `any` 参数
+-   invokeOptions.timeout `number` timeout 超时设置，会覆盖全局设置
+-   invokeOptions.isNotify `boolean` 是否是个一个通知消息
+
+如果 invoke 配置了 isNotify，则作为一个通知消息，方法调用后会立即返回，不理会目标服务是否相应，目标也不会相应回复此消息。内部使用 JSON-PRC 的 id 进行标识。
+
+> 没有包含“id”成员的请求对象为通知， 作为通知的请求对象表明客户端对相应的响应对象并不感兴趣，本身也没有响应对象需要返回给客户端。服务端必须不回复一个通知，包含那些批量请求中的。
+> 由于通知没有返回的响应对象，所以通知不确定是否被定义。同样，客户端不会意识到任何错误（例如参数缺省，内部错误）。
+
+### RPCMessageEvent
+
+RPCMessageEvent 实现一套通用的事件接口，用于处理 window iframe worker 场景下消息通信：
+
+```ts
+interface RPCHandler {
+    (...args: any[]): any;
+}
+
+interface RPCEvent {
+    emit(event: string, ...args: any[]): void;
+    on(event: string, fn: RPCHandler): void;
+    off(event: string, fn?: RPCHandler): void;
+    onerror: null | ((error: RPCError) => void);
+    destroy?: () => void;
+}
+```
+
+使用：
+
+```ts
+// main.td
+import { RPCMessageEvent } from 'rpc-shooter';
+const mainEvent = new RPCMessageEvent({
+    currentContext: window,
+    targetContext: iframe.contentWindow,
+    postMessageConfig: {
+        targetOrigin: '*',
+    },
+    beforeReceive(event) {
+        return event.data;
+    },
+    beforeSend(data) {
+        return data;
+    },
+});
+
+mainEvent.on('Main.test', (data) => {});
+mainEvent.emit('Child.test', (data) => {});
+// mainEvent.off('Main.someMethod');
+// mainEvent.destroy();
+```
+
+```ts
+// child.ts
+import { RPCMessageEvent } from 'rpc-shooter';
+const childEvent = new RPCMessageEvent({
+    currentContext: window,
+    targetContext: window.top,
+    postMessageConfig: {
+        targetOrigin: '*',
+    },
+    beforeReceive(event) {
+        return event.data;
+    },
+    beforeSend(data) {
+        return data;
+    },
+});
+
+childEvent.emit('Main.test', (data) => {});
+```
+
+#### RPCMessageEvent Options
+
+RPCMessageEvent 初始化选项定义如下：
+
+```ts
+interface RPCMessageEventFormat {
+    event: string;
+    args: any[];
+}
+
+interface RPCPostMessageParams {
+    data?: any;
+    targetOrigin?: unknown;
+    transferList?: Transferable[];
+}
+
+interface RPCMessageEventOptions {
+    currentContext: Window | Worker | MessagePort;
+    targetContext: Window | Worker | MessagePort;
+    postMessageConfig?:
+        | ((data: any, context: Window | Worker | MessagePort) => RPCPostMessageParams)
+        | RPCPostMessageParams;
+    beforeSend?: (data: RPCMessageEventFormat) => any;
+    beforeReceive?: (event: MessageEvent) => RPCMessageEventFormat;
+}
+```
+
+| 参数              | 类型                                      | 说明                                                                   |
+| :---------------- | :---------------------------------------- | :--------------------------------------------------------------------- |
+| currentContext    | 必填 `Widow`、`Worker`、`MessagePort`     | 当前通信对象的上下文，可以是 `Widow`、`Worker` 或者 `MessagePort` 对象 |
+| targetContext     | 必填 `Widow`、`Worker`、`MessagePort`     | 目标通信对象的上下文，可以是 `Widow`、`Worker` 或者 `MessagePort` 对象 |
+| postMessageConfig | 可选 `RPCPostMessageParams` or `Function` | 用于给 targetContext.postMessage 方法配置参数                          |
+| beforeSend        | 可选 `Function`                           | 消息发动前数据处理函数                                                 |
+| beforeReceive     | 可选 `Function`                           | 消息接受前数据处理函数                                                 |
+
+**postMessageConfig** 用于给 targetContext 的 `postMessage` 方法配置参数，可以直接配置一个对象，也可以通过函数动态返回一个配置：
+
+```ts
+worker.postMessage(data, [transfer]);
+window.postMessage(data, targetOrigin, [transfer]);
+```
+
+-   `data` 如果其值不为空，则发送数据时优先使用 data，一般不需要配置此项
+-   `targetOrigin` 给 window.postMessage 配置 targetOrigin
+-   `transferList` 配置 postMessage 的 [transfer] 项
+
+```ts
+new RPCMessageEvent({
+    currentContext: worker,
+    targetContext: worker,
+    // 可使用 postMessageConfig 配置 transferList，优化 worker 数据交换
+    postMessageConfig(data) {
+        const rpcData = data.args[0];
+        if (rpcData?.params?.constructor.name === 'ImageBitmap') {
+            return { data, transferList: [rpcData.params] };
+        }
+        return { data };
+    },
+});
+```
+
+**beforeSend** 与 **beforeReceive** 用于数据发送与接受前处理，**一般情况不需要配置**，在一些特殊场景下，如一些应用插件开发场景对交互数据格式有一定要求则可以使用此方法：
+
+figma 插件中 iframe 与主应用通信需要使用 `pluginMessage` 字段包裹。
+
+```ts
+// figma plugin ifame
+new RPCMessageEvent({
+    currentContext: window,
+    targetContext: window.parent,
+    beforeReceive(event) {
+        return event.data.pluginMessage;
+    },
+    beforeSend(data) {
+        return { pluginMessage: data };
+    },
+});
+```
+
+#### RPCMessageEvent Methods
+
+| 方法    | 说明                                    |
+| :------ | :-------------------------------------- |
+| on      | 设置事件监听                            |
+| emit    | 触发事件                                |
+| off     | 一出事件监听                            |
+| onerror | 发生错误时触发 onerror 回调             |
+| destroy | 释放 RPCMessageEvent 资源与内部事件监听 |
+
+```ts
+onerror: null | ((error: RPCError) => void);
+
+const event = new RPCMessageEvent({...});
+event.onerror((error) => {
+});
 ```

@@ -13,13 +13,13 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     });
 }
 
-function getImageData(img: HTMLImageElement): ImageData {
+function getOffscreenCavans(img: HTMLImageElement): OffscreenCanvas {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = img.width;
     canvas.height = img.height;
     ctx.drawImage(img, 0, 0);
-    return ctx.getImageData(0, 0, img.width, img.height);
+    return canvas.transferControlToOffscreen();
 }
 
 (async function () {
@@ -29,8 +29,9 @@ function getImageData(img: HTMLImageElement): ImageData {
             currentContext: worker,
             targetContext: worker,
             postMessageConfig(data) {
-                if (data.data) {
-                    return { data, transferList: [data.data] };
+                const rpcData = data.args[0];
+                if (rpcData?.params?.constructor.name === 'ImageBitmap') {
+                    return { data, transferList: [rpcData.params] };
                 }
                 return { data };
             },
@@ -43,9 +44,9 @@ function getImageData(img: HTMLImageElement): ImageData {
     });
 
     const image = await loadImage(imagURL);
-    const imageData = getImageData(image);
+    const imageDataMap = await window.createImageBitmap(image);
     const grayImage = document.querySelector('.gray') as HTMLImageElement;
-    await rpc.invoke('B.toGray', imageData).then((res: ImageData) => {
+    await rpc.invoke('B.toGray', imageDataMap).then((res: ImageData) => {
         const canvas = document.createElement('canvas');
         canvas.width = res.width;
         canvas.height = res.height;
