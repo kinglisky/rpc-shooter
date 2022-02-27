@@ -111,6 +111,8 @@ npm i rpc-shooter -S
 
 ## 使用
 
+使用 `RPCMessageEvent` 模块可以实现 `Widow`、`iframe`、`Worker` 或者 `Shared Worker` 间的事件交互，如果有个更复杂的事件交互场景，实现自己的 `event` 模块即可。
+
 ### iframe
 
 ```ts
@@ -310,7 +312,18 @@ ctx.onconnect = async (event: MessageEvent) => {
 ### RPC
 
 ```ts
-const RPCInitOptions = {};
+const RPCInitOptions = {
+    timeout: 200,
+    event: new RPCMessageEvent({
+        currentContext: window,
+        targetContext: iframe.contentWindow!,
+        postMessageConfig: { targetOrigin: '*' },
+    }),
+    // 初始化时注册处理函数
+    methods: {
+        'Main.max': (a: number, b: number) => Math.max(a, b),
+    },
+};
 const rpc = new RPC(RPCInitOptions);
 // 动态注册处理函数
 rpc.registerMethod('Main.min', (a: number, b: number) => {
@@ -391,7 +404,7 @@ invoke(
 -   invokeOptions.timeout `number` timeout 超时设置，会覆盖全局设置
 -   invokeOptions.isNotify `boolean` 是否是个一个通知消息
 
-如果 invoke 配置了 isNotify，则作为一个通知消息，方法调用后会立即返回，不理会目标服务是否相应，目标也不会相应回复此消息。内部使用 JSON-PRC 的 id 进行标识。
+如果 invoke 配置了 isNotify，则作为一个通知消息，方法调用后会立即返回，不理会目标服务是否相应，目标也不会响应回复此消息。内部使用 JSON-PRC 的 id 进行标识。
 
 > 没有包含“id”成员的请求对象为通知， 作为通知的请求对象表明客户端对相应的响应对象并不感兴趣，本身也没有响应对象需要返回给客户端。服务端必须不回复一个通知，包含那些批量请求中的。
 > 由于通知没有返回的响应对象，所以通知不确定是否被定义。同样，客户端不会意识到任何错误（例如参数缺省，内部错误）。
@@ -417,7 +430,7 @@ interface RPCEvent {
 使用：
 
 ```ts
-// main.td
+// main.ts
 import { RPCMessageEvent } from 'rpc-shooter';
 const mainEvent = new RPCMessageEvent({
     currentContext: window,
@@ -555,3 +568,18 @@ const event = new RPCMessageEvent({...});
 event.onerror((error) => {
 });
 ```
+
+## 开发
+
+```bash
+# 依赖
+yarn
+# 开发
+yarn dev
+# 构建
+yarn build
+```
+
+# TODO
+
+添加测试~
