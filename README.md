@@ -99,7 +99,7 @@ childRPC.invoke('parent.do_something', { data: 'xxx' })
     });
 ```
 
-使用 [JSON-RPC 2.0](https://wiki.geekdream.com/Specification/json-rpc_2.0.html) 规范可以很简单的描述两个服务间的调用，`rpc-shooter` 中两个服务间通讯的数据格式就是使用 JSON-RPC 描述的。
+使用 [JSON-RPC 2.0](https://wiki.geekdream.com/Specification/json-rpc_2.0.html) 规范可以很清晰简单的描述两个服务间的调用，`rpc-shooter` 中使用 `JSON-RPC` 作为数据交互格式。
 
 ## 安装
 
