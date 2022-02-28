@@ -111,7 +111,7 @@ npm i rpc-shooter -S
 
 ## 使用
 
-使用 `RPCMessageEvent` 模块可以实现 `Widow`、`iframe`、`Worker` 或者 `Shared Worker` 间的事件交互，如果有个更复杂的事件交互场景，实现自己的 `event` 模块即可。
+使用 `RPCMessageEvent` 模块可以实现 `Window`、`Iframe`、`Worker` 或者 `Shared Worker` 间的事件交互，如果有更复杂的事件交互场景，实现自己的 `event` 模块即可。
 
 ### iframe
 
@@ -535,7 +535,7 @@ new RPCMessageEvent({
 
 **beforeSend** 与 **beforeReceive** 用于数据发送与接受前处理，**一般情况不需要配置**，在一些特殊场景下，如一些应用插件开发场景对交互数据格式有一定要求则可以使用此方法：
 
-figma 插件中 iframe 与主应用通信需要使用 `pluginMessage` 字段包裹。
+如 figma 插件中 iframe 与主应用通信需要使用 `pluginMessage` 字段包裹。
 
 ```ts
 // figma plugin ifame
@@ -557,7 +557,7 @@ new RPCMessageEvent({
 | :------ | :-------------------------------------- |
 | on      | 设置事件监听                            |
 | emit    | 触发事件                                |
-| off     | 一出事件监听                            |
+| off     | 移除事件监听                            |
 | onerror | 发生错误时触发 onerror 回调             |
 | destroy | 释放 RPCMessageEvent 资源与内部事件监听 |
 
