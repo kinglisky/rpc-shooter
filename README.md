@@ -508,15 +508,15 @@ interface RPCMessageEventOptions {
 }
 ```
 
-| 参数            | 类型                                      | 说明                                                                   |
-| :-------------- | :---------------------------------------- | :--------------------------------------------------------------------- |
-| currentEndpoint | 必填 `Widow`、`Worker`、`MessagePort`     | 当前通信对象的上下文，可以是 `Widow`、`Worker` 或者 `MessagePort` 对象 |
-| targetEndpoint  | 必填 `Widow`、`Worker`、`MessagePort`     | 目标通信对象的上下文，可以是 `Widow`、`Worker` 或者 `MessagePort` 对象 |
-| config          | 可选 `RPCPostMessageConfig` or `Function` | 用于给 targetEndpoint.postMessage 方法配置参数                         |
-| sendAdapter     | 可选 `Function`                           | 消息发动前数据处理函数                                                 |
-| receiveAdapter  | 可选 `Function`                           | 消息接受前数据处理函数                                                 |
+| 参数            | 类型                                      | 说明                                                                    |
+| :-------------- | :---------------------------------------- | :---------------------------------------------------------------------- |
+| currentEndpoint | 必填 `Window`、`Worker`、`MessagePort`    | 当前通信对象的上下文，可以是 `Window`、`Worker` 或者 `MessagePort` 对象 |
+| targetEndpoint  | 必填 `Window`、`Worker`、`MessagePort`    | 目标通信对象的上下文，可以是 `Window`、`Worker` 或者 `MessagePort` 对象 |
+| config          | 可选 `RPCPostMessageConfig` or `Function` | 用于给 targetEndpoint.postMessage 方法配置参数                          |
+| sendAdapter     | 可选 `Function`                           | 消息发动前数据处理函数                                                  |
+| receiveAdapter  | 可选 `Function`                           | 消息接受前数据处理函数                                                  |
 
-**config** 用于给 targetEndpoint 的 `postMessage` 方法配置参数，可以直接配置一个对象，也可以通过函数动态返回一个配置：
+**config**
 
 ```ts
 type config =
@@ -524,7 +524,8 @@ type config =
     | RPCPostMessageConfig;
 ```
 
-目前只有针对 `window.postMessage` 的 `targetOrigin` 配置
+用于给 targetEndpoint 的 `postMessage` 方法配置参数，可以直接配置一个对象，也可以通过函数动态返回一个配置。
+目前只有针对 `window.postMessage` 的 `targetOrigin` 配置。
 
 ```ts
 new RPCMessageEvent({
@@ -534,7 +535,7 @@ new RPCMessageEvent({
         targetOrigin: '*',
     },
 });
-// 即 window.postMessage(data, targetOrigin, [transfer]);
+// window.postMessage(data, targetOrigin, [transfer]);
 ```
 
 **sendAdapter**
@@ -609,7 +610,7 @@ interface RPCEvent {
 }
 ```
 
-常见事件模块 api 不做赘述
+常见的事件 API 不做赘述
 
 | 方法    | 说明                                    |
 | :------ | :-------------------------------------- |
