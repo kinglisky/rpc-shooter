@@ -360,7 +360,7 @@ interface RPCInitOptions {
 | 参数    | 类型                              | 说明                                                                              |
 | :------ | :-------------------------------- | :-------------------------------------------------------------------------------- |
 | event   | 必填 `RPCEvent`                   | 用于服务间通信的事件模块，可参考 `RPCMessageEvent` 实现，满足 `RPCEvent` 接口即可 |
-| methods | 必填 `Record<string, RPCHandler>` | 由于注册当前服务可调用的方法                                                      |
+| methods | 可选 `Record<string, RPCHandler>` | 由于注册当前服务可调用的方法                                                      |
 | timeout | 可选 `number`                     | 方法调用的全局超时时间，为 0 则不设置超时时间                                     |
 
 #### RPC Methods
