@@ -1,7 +1,7 @@
 {
     "name": "rpc-shooter",
     "private": false,
-    "version": "1.0.0",
+    "version": "0.0.5",
     "files": [
         "lib",
         "src"
