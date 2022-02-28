@@ -5,8 +5,8 @@ import './style.css';
 (async function () {
     const rpc = new RPC({
         event: new RPCMessageEvent({
-            currentContext: window,
-            targetContext: window.opener,
+            currentEndpoint: window,
+            targetEndpoint: window.opener,
         }),
         methods: BMethods,
     });

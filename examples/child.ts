@@ -5,12 +5,13 @@ import './style.css';
 (async function () {
     const rpc = new RPC({
         event: new RPCMessageEvent({
-            currentContext: window,
-            targetContext: window.top,
+            currentEndpoint: window,
+            targetEndpoint: window.top,
         }),
         methods: BMethods,
     });
     await rpc.connect(2000);
+    console.log('child rpc connected');
     rpc.invoke('A.add', [1, 2]).then((res) => {
         console.log(`B invoke A.add result: ${res}`);
     });

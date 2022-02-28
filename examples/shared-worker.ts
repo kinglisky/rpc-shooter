@@ -8,8 +8,8 @@ import './style.css';
     worker.port.start();
     const rpc = new RPC({
         event: new RPCMessageEvent({
-            currentContext: worker.port,
-            targetContext: worker.port,
+            currentEndpoint: worker.port,
+            targetEndpoint: worker.port,
         }),
         methods: AMethods,
     });

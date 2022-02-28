@@ -12,8 +12,8 @@ ctx.onconnect = (event: MessageEvent) => {
     port.start();
     const rpc = new RPC({
         event: new RPCMessageEvent({
-            currentContext: port,
-            targetContext: port,
+            currentEndpoint: port,
+            targetEndpoint: port,
         }),
         methods: BMethods,
     });

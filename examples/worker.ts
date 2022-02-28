@@ -13,27 +13,21 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     });
 }
 
-function getOffscreenCavans(img: HTMLImageElement): OffscreenCanvas {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = img.width;
-    canvas.height = img.height;
-    ctx.drawImage(img, 0, 0);
-    return canvas.transferControlToOffscreen();
-}
-
 (async function () {
     const worker = new RPCWorker();
     const rpc = new RPC({
         event: new RPCMessageEvent({
-            currentContext: worker,
-            targetContext: worker,
-            postMessageConfig(data) {
-                const rpcData = data.args[0];
-                if (rpcData?.params?.constructor.name === 'ImageBitmap') {
-                    return { data, transferList: [rpcData.params] };
-                }
-                return { data };
+            currentEndpoint: worker,
+            targetEndpoint: worker,
+            sendAdapter(data) {
+                const transferList = [];
+                JSON.stringify(data, (_, value) => {
+                    if (value?.constructor.name === 'ImageBitmap') {
+                        transferList.push(value);
+                    }
+                    return value;
+                });
+                return { data, transferList };
             },
         }),
         methods: AMethods,

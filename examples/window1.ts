@@ -11,9 +11,9 @@ import './style.css';
         const newWindow = await openNewWindow('window2.html');
         const rpc = new RPC({
             event: new RPCMessageEvent({
-                currentContext: window,
-                targetContext: newWindow,
-                postMessageConfig: { targetOrigin: '*' },
+                currentEndpoint: window,
+                targetEndpoint: newWindow,
+                config: { targetOrigin: '*' },
             }),
             methods: AMethods,
         });

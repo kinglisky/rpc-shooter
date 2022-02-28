@@ -16,24 +16,28 @@ export interface RPCEvent {
     destroy?: () => void;
 }
 
-export interface RPCMessageEventFormat {
+export interface RPCMessageDataFormat {
     event: string;
     args: any[];
 }
 
-export interface RPCPostMessageParams {
-    data?: any;
+export interface RPCPostMessageConfig {
     targetOrigin?: unknown;
-    transferList?: Transferable[];
 }
 export interface RPCMessageEventOptions {
-    currentContext: Window | Worker | MessagePort;
-    targetContext: Window | Worker | MessagePort;
-    postMessageConfig?:
-        | ((data: any, context: Window | Worker | MessagePort) => RPCPostMessageParams)
-        | RPCPostMessageParams;
-    beforeSend?: (data: RPCMessageEventFormat) => any;
-    beforeReceive?: (event: MessageEvent) => RPCMessageEventFormat;
+    currentEndpoint: Window | Worker | MessagePort;
+    targetEndpoint: Window | Worker | MessagePort;
+    config?:
+        | ((data: any, context: Window | Worker | MessagePort) => RPCPostMessageConfig)
+        | RPCPostMessageConfig;
+    sendAdapter?: (
+        data: RPCMessageDataFormat,
+        context: Window | Worker | MessagePort
+    ) => {
+        data: RPCMessageDataFormat;
+        transferList?: Transferable[];
+    };
+    receiveAdapter?: (event: MessageEvent) => RPCMessageDataFormat;
 }
 
 export const RPCCodes: Record<string, Pick<RPCError, 'code' | 'message'>> = {
@@ -59,32 +63,32 @@ export class RPCMessageEvent implements RPCEvent {
         'SharedWorker',
         'MessagePort',
     ];
-    private _currentContext: Window | Worker | MessagePort;
-    private _targetContext: Window | Worker | MessagePort;
+    private _currentEndpoint: RPCMessageEventOptions['currentEndpoint'];
+    private _targetEndpoint: RPCMessageEventOptions['targetEndpoint'];
     private _events: Record<string, Array<RPCHandler>>;
     private _originOnmessage: ((event: MessageEvent) => void) | null;
     private _receiveMessage: (event: MessageEvent) => void;
 
     onerror: null | ((error: RPCError) => void) = null;
-    postMessageConfig?: ((data: any, context: Window | Worker | MessagePort) => any[]) | any;
-    beforeSend?: (data: RPCMessageEventFormat) => any;
-    beforeReceive?: (event: MessageEvent) => RPCMessageEventFormat;
+    config?: RPCMessageEventOptions['config'];
+    sendAdapter?: RPCMessageEventOptions['sendAdapter'];
+    receiveAdapter?: RPCMessageEventOptions['receiveAdapter'];
 
     constructor(options: RPCMessageEventOptions) {
         this._events = {};
-        this._currentContext = options.currentContext;
-        this._targetContext = options.targetContext;
+        this._currentEndpoint = options.currentEndpoint;
+        this._targetEndpoint = options.targetEndpoint;
         this._originOnmessage = null;
         // hooks
-        this.postMessageConfig = options.postMessageConfig;
-        this.beforeReceive = options.beforeReceive;
-        this.beforeSend = options.beforeSend;
+        this.config = options.config;
+        this.receiveAdapter = options.receiveAdapter;
+        this.sendAdapter = options.sendAdapter;
 
         const receiveMessage = (event: MessageEvent) => {
-            const receiveData = this.beforeReceive
-                ? this.beforeReceive(event)
-                : (event.data as RPCMessageEventFormat);
-            if (typeof receiveData.event === 'string') {
+            const receiveData = this.receiveAdapter
+                ? this.receiveAdapter(event)
+                : (event.data as RPCMessageDataFormat);
+            if (receiveData && typeof receiveData.event === 'string') {
                 const eventHandlers = this._events[receiveData.event] || [];
                 if (eventHandlers.length) {
                     eventHandlers.forEach((handler) => {
@@ -101,8 +105,8 @@ export class RPCMessageEvent implements RPCEvent {
                 }
             }
         };
-        if (this._currentContext.addEventListener) {
-            this._currentContext.addEventListener(
+        if (this._currentEndpoint.addEventListener) {
+            this._currentEndpoint.addEventListener(
                 'message',
                 receiveMessage as EventListenerOrEventListenerObject,
                 false
@@ -110,47 +114,45 @@ export class RPCMessageEvent implements RPCEvent {
             this._receiveMessage = receiveMessage;
         } else {
             // some plugine env don't support addEventListener（like figma.ui)
-            this._originOnmessage = this._currentContext.onmessage;
-            this._currentContext.onmessage = (event: MessageEvent) => {
+            this._originOnmessage = this._currentEndpoint.onmessage;
+            this._currentEndpoint.onmessage = (event: MessageEvent) => {
                 if (this._originOnmessage) {
                     this._originOnmessage(event);
                 }
                 receiveMessage(event);
             };
-            this._receiveMessage = this._currentContext.onmessage;
+            this._receiveMessage = this._currentEndpoint.onmessage;
         }
     }
 
     emit(event: string, ...args: any[]): void {
-        const data: RPCMessageEventFormat = {
+        const data: RPCMessageDataFormat = {
             event,
             args,
         };
-        const sendData = this.beforeSend ? this.beforeSend(data) : data;
-        const { postMessageConfig } = this;
-        const config = this.postMessageConfig
-            ? typeof postMessageConfig === 'function'
-                ? postMessageConfig(sendData, this._targetContext) || {}
-                : postMessageConfig
+        const result = this.sendAdapter ? this.sendAdapter(data, this._targetEndpoint) : { data };
+        const sendData = result.data || data;
+        const postMessageConfig = this.config
+            ? typeof this.config === 'function'
+                ? this.config(sendData, this._targetEndpoint) || {}
+                : this.config || {}
             : {};
-        const postData = config.data || sendData;
-        const postArgs = [];
+        const postArgs: any[] = [];
+        if (Array.isArray(result.transferList) && result.transferList.length) {
+            postArgs.push(result.transferList);
+        }
         // in worker env
-        if (RPCMessageEvent.WorkerConstructorNames.includes(this._targetContext.constructor.name)) {
-            if (Array.isArray(config.transferList) && config.transferList.length) {
-                postArgs.push(config.transferList);
-            }
-            this._targetContext.postMessage(postData, ...postArgs);
+        if (
+            RPCMessageEvent.WorkerConstructorNames.includes(this._targetEndpoint.constructor.name)
+        ) {
+            this._targetEndpoint.postMessage(sendData, ...postArgs);
             return;
         }
-        if (config.targetOrigin) {
-            postArgs.push(config.targetOrigin);
-        }
-        if (Array.isArray(config.transferList) && config.transferList.length) {
-            postArgs.push(config.transferList);
+        if (postMessageConfig.targetOrigin) {
+            postArgs.unshift(postMessageConfig.targetOrigin);
         }
         // in window env
-        this._targetContext.postMessage(postData, ...postArgs);
+        this._targetEndpoint.postMessage(sendData, ...postArgs);
     }
 
     on(event: string, fn: RPCHandler): void {
@@ -161,6 +163,7 @@ export class RPCMessageEvent implements RPCEvent {
     }
 
     off(event: string, fn?: RPCHandler): void {
+        if (!this._events[event]) return;
         if (!fn) {
             this._events[event] = [];
             return;
@@ -170,14 +173,14 @@ export class RPCMessageEvent implements RPCEvent {
     }
 
     destroy(): void {
-        if (this._currentContext.removeEventListener) {
-            this._currentContext.removeEventListener(
+        if (this._currentEndpoint.removeEventListener) {
+            this._currentEndpoint.removeEventListener(
                 'message',
                 this._receiveMessage as EventListenerOrEventListenerObject,
                 false
             );
         } else {
-            this._currentContext.onmessage = this._originOnmessage;
+            this._currentEndpoint.onmessage = this._originOnmessage;
         }
     }
 }
@@ -218,6 +221,13 @@ export class RPC {
 
     static CODES = RPCCodes;
 
+    static EVENT = {
+        SYN_SIGN: 'syn:',
+        ACK_SIGN: 'ack:',
+        CONNECT: '__rpc_connect_event',
+        SYNC_METHODS: '__rpc_sync_methods_event',
+    };
+
     static uuid(): string {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
             const r = (Math.random() * 16) | 0;
@@ -257,11 +267,11 @@ export class RPC {
     }
 
     _getSynEventName(method: string): string {
-        return `syn:${method}`;
+        return `${RPC.EVENT.SYN_SIGN}${method}`;
     }
 
     _getAckEventName(method: string): string {
-        return `ack:${method}`;
+        return `${RPC.EVENT.ACK_SIGN}${method}`;
     }
 
     // check connect
@@ -281,13 +291,11 @@ export class RPC {
                     reject(error);
                 }, connectTimeout);
             }
-            const connectEventName = '__rpc_connect_event';
+            const connectEventName = RPC.EVENT.CONNECT;
             const connectAckEventName = this._getAckEventName(connectEventName);
             const connectSynEventName = this._getSynEventName(connectEventName);
             const resolveConnectEvent = () => {
                 clearTimeout(connectTimer);
-                // this._event.off(connectSynEventName);
-                // this._event.off(connectAckEventName);
                 resolve();
             };
             // listen connect ask event && resolve
@@ -343,6 +351,14 @@ export class RPC {
         this._event.on(synEventName, synEventHandler);
     }
 
+    removeMethod(method: string) {
+        if (!this._methods[method]) {
+            delete this._methods[method];
+        }
+        const synEventName = this._getSynEventName(method);
+        this._event.off(synEventName);
+    }
+
     invoke(
         method: string,
         params: any,
@@ -395,6 +411,10 @@ export class RPC {
             const synEventName = this._getSynEventName(method);
             this._event.off(synEventName);
         });
+        const connectAckEventName = this._getAckEventName(RPC.EVENT.CONNECT);
+        const connectSynEventName = this._getSynEventName(RPC.EVENT.CONNECT);
+        this._event.off(connectSynEventName);
+        this._event.off(connectAckEventName);
         if (this._event.destroy) {
             this._event.destroy();
         }

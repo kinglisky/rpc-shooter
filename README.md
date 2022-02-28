@@ -123,9 +123,9 @@ import { RPCMessageEvent, RPC } from 'rpc-shooter';
     const iframe = document.querySelector('iframe')!;
     const rpc = new RPC({
         event: new RPCMessageEvent({
-            currentContext: window,
-            targetContext: iframe.contentWindow!,
-            postMessageConfig: { targetOrigin: '*' },
+            currentEndpoint: window,
+            targetEndpoint: iframe.contentWindow!,
+            config: { targetOrigin: '*' },
         }),
         // 初始化时注册处理函数
         methods: {
@@ -152,8 +152,8 @@ import { RPCMessageEvent, RPC } from 'rpc-shooter';
 (async function () {
     const rpc = new RPC({
         event: new RPCMessageEvent({
-            currentContext: window,
-            targetContext: window.top,
+            currentEndpoint: window,
+            targetEndpoint: window.top,
         }),
     });
 
@@ -179,9 +179,9 @@ import { RPCMessageEvent, RPC } from 'rpc-shooter';
     const newWindow = openNewWindow('new-window.html');
     const rpc = new RPC({
         event: new RPCMessageEvent({
-            currentContext: window,
-            targetContext: newWindow,
-            postMessageConfig: { targetOrigin: '*' },
+            currentEndpoint: window,
+            targetEndpoint: newWindow,
+            config: { targetOrigin: '*' },
         }),
     });
     rpc.registerMethod('Main.max', (a: number, b: number) => {
@@ -198,8 +198,8 @@ import { RPCMessageEvent, RPC } from 'rpc-shooter';
 (async function () {
     const rpc = new RPC({
         event: new RPCMessageEvent({
-            currentContext: window,
-            targetContext: window.opener,
+            currentEndpoint: window,
+            targetEndpoint: window.opener,
         }),
     });
     rpc.registerMethod('Child.random', () => Math.random());
@@ -220,8 +220,8 @@ import { RPCMessageEvent, RPC } from 'rpc-shooter';
     const worker = new Worker('./slef.worker.ts');
     const rpc = new RPC({
         event: new RPCMessageEvent({
-            currentContext: worker,
-            targetContext: worker,
+            currentEndpoint: worker,
+            targetEndpoint: worker,
         }),
     });
     rpc.registerMethod('Main.max', (a: number, b: number) => {
@@ -240,8 +240,8 @@ import { RPCMessageEvent, RPC } from 'rpc-shooter';
     const ctx: Worker = self as any;
     const rpc = new RPC({
         event: new RPCMessageEvent({
-            currentContext: ctx,
-            targetContext: ctx,
+            currentEndpoint: ctx,
+            targetEndpoint: ctx,
         }),
     });
     rpc.registerMethod('Child.random', () => Math.random());
@@ -263,8 +263,8 @@ import { RPCMessageEvent, RPC } from 'rpc-shooter';
     worker.port.start();
     const rpc = new RPC({
         event: new RPCMessageEvent({
-            currentContext: worker.port,
-            targetContext: worker.port,
+            currentEndpoint: worker.port,
+            targetEndpoint: worker.port,
         }),
     });
     rpc.registerMethod('Main.max', (a: number, b: number) => {
@@ -290,8 +290,8 @@ ctx.onconnect = async (event: MessageEvent) => {
     port.start();
     const rpc = new RPC({
         event: new RPCMessageEvent({
-            currentContext: port,
-            targetContext: port,
+            currentEndpoint: port,
+            targetEndpoint: port,
         }),
     });
     rpc.registerMethod('Child.random', () => Math.random());
@@ -315,9 +315,9 @@ ctx.onconnect = async (event: MessageEvent) => {
 const RPCInitOptions = {
     timeout: 200,
     event: new RPCMessageEvent({
-        currentContext: window,
-        targetContext: iframe.contentWindow!,
-        postMessageConfig: { targetOrigin: '*' },
+        currentEndpoint: window,
+        targetEndpoint: iframe.contentWindow!,
+        config: { targetOrigin: '*' },
     }),
     // 初始化时注册处理函数
     methods: {
@@ -433,15 +433,15 @@ interface RPCEvent {
 // main.ts
 import { RPCMessageEvent } from 'rpc-shooter';
 const mainEvent = new RPCMessageEvent({
-    currentContext: window,
-    targetContext: iframe.contentWindow,
-    postMessageConfig: {
+    currentEndpoint: window,
+    targetEndpoint: iframe.contentWindow,
+    config: {
         targetOrigin: '*',
     },
     beforeReceive(event) {
         return event.data;
     },
-    beforeSend(data) {
+    receiveAdapter(data) {
         return data;
     },
 });
@@ -456,15 +456,15 @@ mainEvent.emit('Child.test', (data) => {});
 // child.ts
 import { RPCMessageEvent } from 'rpc-shooter';
 const childEvent = new RPCMessageEvent({
-    currentContext: window,
-    targetContext: window.top,
-    postMessageConfig: {
+    currentEndpoint: window,
+    targetEndpoint: window.top,
+    config: {
         targetOrigin: '*',
     },
     beforeReceive(event) {
         return event.data;
     },
-    beforeSend(data) {
+    receiveAdapter(data) {
         return data;
     },
 });
@@ -477,37 +477,35 @@ childEvent.emit('Main.test', (data) => {});
 RPCMessageEvent 初始化选项定义如下：
 
 ```ts
-interface RPCMessageEventFormat {
+interface RPCMessageDataFormat {
     event: string;
     args: any[];
 }
 
-interface RPCPostMessageParams {
-    data?: any;
+interface RPCPostMessageConfig {
     targetOrigin?: unknown;
-    transferList?: Transferable[];
 }
 
 interface RPCMessageEventOptions {
-    currentContext: Window | Worker | MessagePort;
-    targetContext: Window | Worker | MessagePort;
-    postMessageConfig?:
-        | ((data: any, context: Window | Worker | MessagePort) => RPCPostMessageParams)
-        | RPCPostMessageParams;
-    beforeSend?: (data: RPCMessageEventFormat) => any;
-    beforeReceive?: (event: MessageEvent) => RPCMessageEventFormat;
+    currentEndpoint: Window | Worker | MessagePort;
+    targetEndpoint: Window | Worker | MessagePort;
+    config?:
+        | ((data: any, context: Window | Worker | MessagePort) => RPCPostMessageConfig)
+        | RPCPostMessageConfig;
+    receiveAdapter?: (data: RPCMessageDataFormat) => any;
+    beforeReceive?: (event: MessageEvent) => RPCMessageDataFormat;
 }
 ```
 
-| 参数              | 类型                                      | 说明                                                                   |
-| :---------------- | :---------------------------------------- | :--------------------------------------------------------------------- |
-| currentContext    | 必填 `Widow`、`Worker`、`MessagePort`     | 当前通信对象的上下文，可以是 `Widow`、`Worker` 或者 `MessagePort` 对象 |
-| targetContext     | 必填 `Widow`、`Worker`、`MessagePort`     | 目标通信对象的上下文，可以是 `Widow`、`Worker` 或者 `MessagePort` 对象 |
-| postMessageConfig | 可选 `RPCPostMessageParams` or `Function` | 用于给 targetContext.postMessage 方法配置参数                          |
-| beforeSend        | 可选 `Function`                           | 消息发动前数据处理函数                                                 |
-| beforeReceive     | 可选 `Function`                           | 消息接受前数据处理函数                                                 |
+| 参数            | 类型                                      | 说明                                                                   |
+| :-------------- | :---------------------------------------- | :--------------------------------------------------------------------- |
+| currentEndpoint | 必填 `Widow`、`Worker`、`MessagePort`     | 当前通信对象的上下文，可以是 `Widow`、`Worker` 或者 `MessagePort` 对象 |
+| targetEndpoint  | 必填 `Widow`、`Worker`、`MessagePort`     | 目标通信对象的上下文，可以是 `Widow`、`Worker` 或者 `MessagePort` 对象 |
+| config          | 可选 `RPCPostMessageConfig` or `Function` | 用于给 targetEndpoint.postMessage 方法配置参数                         |
+| receiveAdapter  | 可选 `Function`                           | 消息发动前数据处理函数                                                 |
+| beforeReceive   | 可选 `Function`                           | 消息接受前数据处理函数                                                 |
 
-**postMessageConfig** 用于给 targetContext 的 `postMessage` 方法配置参数，可以直接配置一个对象，也可以通过函数动态返回一个配置：
+**config** 用于给 targetEndpoint 的 `postMessage` 方法配置参数，可以直接配置一个对象，也可以通过函数动态返回一个配置：
 
 ```ts
 worker.postMessage(data, [transfer]);
@@ -520,10 +518,10 @@ window.postMessage(data, targetOrigin, [transfer]);
 
 ```ts
 new RPCMessageEvent({
-    currentContext: worker,
-    targetContext: worker,
-    // 可使用 postMessageConfig 配置 transferList，优化 worker 数据交换
-    postMessageConfig(data) {
+    currentEndpoint: worker,
+    targetEndpoint: worker,
+    // 可使用 config 配置 transferList，优化 worker 数据交换
+    config(data) {
         const rpcData = data.args[0];
         if (rpcData?.params?.constructor.name === 'ImageBitmap') {
             return { data, transferList: [rpcData.params] };
@@ -533,19 +531,19 @@ new RPCMessageEvent({
 });
 ```
 
-**beforeSend** 与 **beforeReceive** 用于数据发送与接受前处理，**一般情况不需要配置**，在一些特殊场景下，如一些应用插件开发场景对交互数据格式有一定要求则可以使用此方法：
+**receiveAdapter** 与 **beforeReceive** 用于数据发送与接受前处理，**一般情况不需要配置**，在一些特殊场景下，如一些应用插件开发场景对交互数据格式有一定要求则可以使用此方法：
 
 如 figma 插件中 iframe 与主应用通信需要使用 `pluginMessage` 字段包裹。
 
 ```ts
 // figma plugin ifame
 new RPCMessageEvent({
-    currentContext: window,
-    targetContext: window.parent,
+    currentEndpoint: window,
+    targetEndpoint: window.parent,
     beforeReceive(event) {
         return event.data.pluginMessage;
     },
-    beforeSend(data) {
+    receiveAdapter(data) {
         return { pluginMessage: data };
     },
 });

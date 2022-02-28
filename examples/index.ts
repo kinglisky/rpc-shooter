@@ -7,14 +7,14 @@ import './style.css';
 
     const rpc = new RPC({
         event: new RPCMessageEvent({
-            currentContext: window,
-            targetContext: iframe.contentWindow!,
-            postMessageConfig: { targetOrigin: '*' },
+            currentEndpoint: window,
+            targetEndpoint: iframe.contentWindow!,
+            config: { targetOrigin: '*' },
         }),
         methods: AMethods,
     });
     await rpc.connect(2000);
-    console.log('rpc connected');
+    console.log('main rpc connected');
     await rpc.invoke('B.now', null).then((res) => {
         console.log(`A invoke B.now result: ${res}`);
     });

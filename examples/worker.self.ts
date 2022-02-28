@@ -4,8 +4,8 @@ import { BMethods } from './methods';
 const ctx: Worker = self as any;
 const rpc = new RPC({
     event: new RPCMessageEvent({
-        currentContext: ctx,
-        targetContext: ctx,
+        currentEndpoint: ctx,
+        targetEndpoint: ctx,
     }),
     methods: BMethods,
 });
