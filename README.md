@@ -322,6 +322,7 @@ const RPCInitOptions = {
     // 初始化时注册处理函数
     methods: {
         'Main.max': (a: number, b: number) => Math.max(a, b),
+        'Main.abs': (a: number) => Math.abs(a),
     },
 };
 const rpc = new RPC(RPCInitOptions);
@@ -329,6 +330,8 @@ const rpc = new RPC(RPCInitOptions);
 rpc.registerMethod('Main.min', (a: number, b: number) => {
     return Promise.resolve(Math.min(a, b));
 });
+// 移除注册函数
+rpc.removeMethod('Main.abs');
 // 检查链接，配置超时时间
 await rpc.connect(2000);
 // 调用 iframe 服务中的注册方法
@@ -365,12 +368,6 @@ interface RPCInitOptions {
 
 #### RPC Methods
 
-| 方法           | 说明             |
-| :------------- | :--------------- |
-| connect        | 用于检测链接状态 |
-| registerMethod | 动态注册调用方法 |
-| invoke         | 调用远程服务     |
-
 **connect**
 
 ```ts
@@ -385,7 +382,15 @@ timeout 超时设置，会覆盖全局设置
 registerMethod(method: string, handler: RPCHandler);
 ```
 
-动态注册调用方法
+注册调用方法
+
+**removeMethod**
+
+```ts
+removeMethod(method: string);
+```
+
+移除调用方法
 
 **invoke**
 
@@ -438,7 +443,7 @@ const mainEvent = new RPCMessageEvent({
     config: {
         targetOrigin: '*',
     },
-    beforeReceive(event) {
+    receiveAdapter(event) {
         return event.data;
     },
     receiveAdapter(data) {
@@ -461,7 +466,7 @@ const childEvent = new RPCMessageEvent({
     config: {
         targetOrigin: '*',
     },
-    beforeReceive(event) {
+    receiveAdapter(event) {
         return event.data;
     },
     receiveAdapter(data) {
@@ -492,8 +497,14 @@ interface RPCMessageEventOptions {
     config?:
         | ((data: any, context: Window | Worker | MessagePort) => RPCPostMessageConfig)
         | RPCPostMessageConfig;
-    receiveAdapter?: (data: RPCMessageDataFormat) => any;
-    beforeReceive?: (event: MessageEvent) => RPCMessageDataFormat;
+    sendAdapter?: (
+        data: RPCMessageDataFormat,
+        context: Window | Worker | MessagePort
+    ) => {
+        data: RPCMessageDataFormat;
+        transferList?: Transferable[];
+    };
+    receiveAdapter?: (event: MessageEvent) => RPCMessageDataFormat;
 }
 ```
 
@@ -502,36 +513,69 @@ interface RPCMessageEventOptions {
 | currentEndpoint | 必填 `Widow`、`Worker`、`MessagePort`     | 当前通信对象的上下文，可以是 `Widow`、`Worker` 或者 `MessagePort` 对象 |
 | targetEndpoint  | 必填 `Widow`、`Worker`、`MessagePort`     | 目标通信对象的上下文，可以是 `Widow`、`Worker` 或者 `MessagePort` 对象 |
 | config          | 可选 `RPCPostMessageConfig` or `Function` | 用于给 targetEndpoint.postMessage 方法配置参数                         |
-| receiveAdapter  | 可选 `Function`                           | 消息发动前数据处理函数                                                 |
-| beforeReceive   | 可选 `Function`                           | 消息接受前数据处理函数                                                 |
+| sendAdapter     | 可选 `Function`                           | 消息发动前数据处理函数                                                 |
+| receiveAdapter  | 可选 `Function`                           | 消息接受前数据处理函数                                                 |
 
 **config** 用于给 targetEndpoint 的 `postMessage` 方法配置参数，可以直接配置一个对象，也可以通过函数动态返回一个配置：
 
 ```ts
-worker.postMessage(data, [transfer]);
-window.postMessage(data, targetOrigin, [transfer]);
+type config =
+    | ((data: any, context: Window | Worker | MessagePort) => RPCPostMessageConfig)
+    | RPCPostMessageConfig;
 ```
 
--   `data` 如果其值不为空，则发送数据时优先使用 data，一般不需要配置此项
--   `targetOrigin` 给 window.postMessage 配置 targetOrigin
--   `transferList` 配置 postMessage 的 [transfer] 项
+目前只有针对 `window.postMessage` 的 `targetOrigin` 配置
 
 ```ts
 new RPCMessageEvent({
     currentEndpoint: worker,
     targetEndpoint: worker,
-    // 可使用 config 配置 transferList，优化 worker 数据交换
-    config(data) {
-        const rpcData = data.args[0];
-        if (rpcData?.params?.constructor.name === 'ImageBitmap') {
-            return { data, transferList: [rpcData.params] };
-        }
-        return { data };
+    config: {
+        targetOrigin: '*',
+    },
+});
+// 即 window.postMessage(data, targetOrigin, [transfer]);
+```
+
+**sendAdapter**
+
+```ts
+type sendAdapter = (
+    data: RPCMessageDataFormat,
+    context: Window | Worker | MessagePort
+) => {
+    data: RPCMessageDataFormat;
+    transferList?: Transferable[];
+};
+```
+
+发送数据前的适配函数，在一些特殊环境下可以对发送的数据做一些处理，还可以为发送的数据附加 [transferList](https://developer.mozilla.org/zh-CN/docs/Web/API/Transferable) 优化数据传输。
+
+```ts
+new RPCMessageEvent({
+    currentEndpoint: worker,
+    targetEndpoint: worker,
+    sendAdapter(data) {
+        const transferList = [];
+        // 将 ImageBitmap 添加至 transferList 优化数据传输
+        JSON.stringify(data, (_, value) => {
+            if (value?.constructor.name === 'ImageBitmap') {
+                transferList.push(value);
+            }
+            return value;
+        });
+        return { data, transferList };
     },
 });
 ```
 
-**receiveAdapter** 与 **beforeReceive** 用于数据发送与接受前处理，**一般情况不需要配置**，在一些特殊场景下，如一些应用插件开发场景对交互数据格式有一定要求则可以使用此方法：
+**receiveAdapter**
+
+```ts
+type receiveAdapter = (event: MessageEvent) => RPCMessageDataFormat;
+```
+
+数据接受前的处理函数，**一般情况不需要配置**，在一些特殊场景下，如一些应用插件开发场景对交互数据格式有一定要求则可以使用此方法：
 
 如 figma 插件中 iframe 与主应用通信需要使用 `pluginMessage` 字段包裹。
 
@@ -540,16 +584,32 @@ new RPCMessageEvent({
 new RPCMessageEvent({
     currentEndpoint: window,
     targetEndpoint: window.parent,
-    beforeReceive(event) {
+    receiveAdapter(event) {
         return event.data.pluginMessage;
     },
-    receiveAdapter(data) {
+    sendAdapter(data) {
         return { pluginMessage: data };
     },
 });
 ```
 
 #### RPCMessageEvent Methods
+
+```ts
+interface RPCHandler {
+    (...args: any[]): any;
+}
+
+interface RPCEvent {
+    emit(event: string, ...args: any[]): void;
+    on(event: string, fn: RPCHandler): void;
+    off(event: string, fn?: RPCHandler): void;
+    onerror: null | ((error: RPCError) => void);
+    destroy?: () => void;
+}
+```
+
+常见事件模块 api 不做赘述
 
 | 方法    | 说明                                    |
 | :------ | :-------------------------------------- |
@@ -559,12 +619,21 @@ new RPCMessageEvent({
 | onerror | 发生错误时触发 onerror 回调             |
 | destroy | 释放 RPCMessageEvent 资源与内部事件监听 |
 
-```ts
-onerror: null | ((error: RPCError) => void);
+#### RPCMessageEvent Event
 
+**onerror**
+
+```ts
+type onerror = null | ((error: RPCError) => void);
+```
+
+事件模块内部发生错误时的回调函数。
+
+```ts
 const event = new RPCMessageEvent({...});
-event.onerror((error) => {
-});
+event.onerror = (error) => {
+    console.log(error);
+};
 ```
 
 ## 开发

@@ -16,6 +16,10 @@ import './style.css';
         console.log(`B invoke A.add result: ${res}`);
     });
 
+    rpc.invoke('A.abs', -3).then((res) => {
+        console.log(`B invoke A.abs result: ${res}`);
+    });
+
     rpc.invoke('C.add', [1, 2]).then((res) => {
         console.log(`B invoke C.add result: ${res}`);
     });

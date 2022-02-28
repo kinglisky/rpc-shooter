@@ -4,6 +4,7 @@ export const AMethods: RPCInitOptions['methods'] = {
     'A.add': (args: [a: number, b: number]) => {
         return args[0] + args[1];
     },
+    'A.abs': (a: number) => Math.abs(a),
 };
 
 export const BMethods: RPCInitOptions['methods'] = {
@@ -12,7 +13,4 @@ export const BMethods: RPCInitOptions['methods'] = {
     },
 };
 
-export const invokeMethods = (
-    rpc: RPC,
-    methods: RPCInitOptions['methods']
-) => {};
+export const invokeMethods = (rpc: RPC, methods: RPCInitOptions['methods']) => {};

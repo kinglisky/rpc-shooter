@@ -13,6 +13,7 @@ import './style.css';
         }),
         methods: AMethods,
     });
+    rpc.removeMethod('A.abs');
     await rpc.connect(2000);
     console.log('main rpc connected');
     await rpc.invoke('B.now', null).then((res) => {
