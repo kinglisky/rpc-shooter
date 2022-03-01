@@ -1,4 +1,4 @@
-import { RPCInitOptions, RPC } from '../src/index';
+import { RPCInitOptions, RPC } from './lib';
 
 export const AMethods: RPCInitOptions['methods'] = {
     'A.add': (args: [a: number, b: number]) => {

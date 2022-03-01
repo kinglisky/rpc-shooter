@@ -1,4 +1,4 @@
-import { RPCMessageEvent, RPC } from '../src/index';
+import { RPCMessageEvent, RPC } from './lib';
 import { BMethods } from './methods';
 
 const ctx: Worker = self as any;

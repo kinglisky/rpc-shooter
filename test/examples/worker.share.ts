@@ -1,4 +1,4 @@
-import { RPCMessageEvent, RPC } from '../src/index';
+import { RPCMessageEvent, RPC } from './lib';
 import { BMethods } from './methods';
 interface SharedWorkerGlobalScope {
     onconnect: (event: MessageEvent) => void;

@@ -17,6 +17,7 @@
     "types": "lib/index.d.ts",
     "scripts": {
         "dev": "vite",
+        "preview": "vite preview",
         "build": "tsc && vite build",
         "lib": "tsc && cross-env BUILD_LIB=1 vite build",
         "test": "vitest",

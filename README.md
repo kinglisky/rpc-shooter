@@ -416,7 +416,7 @@ invoke(
 
 ### RPCMessageEvent
 
-RPCMessageEvent 实现一套通用的事件接口，用于处理 window iframe worker 场景下消息通信：
+RPCMessageEvent 实现一套与 [socket.io](https://socket.io/) 类似的事件接口，用于处理 window iframe worker 场景下消息通信：
 
 ```ts
 interface RPCHandler {
@@ -576,7 +576,25 @@ new RPCMessageEvent({
 type receiveAdapter = (event: MessageEvent) => RPCMessageDataFormat;
 ```
 
-数据接受前的处理函数，**一般情况不需要配置**，在一些特殊场景下，如一些应用插件开发场景对交互数据格式有一定要求则可以使用此方法：
+数据接收前的处理函数，**一般情况不需要配置**，在一些特殊场景下：
+
+-   检查数据 `origin` 来源过滤掉不安全消息请求
+-   本地开发场景下一些 dev server 抛出消息事件
+-   一些应用插件场景对交互数据格式有一定要求则可以使用此适配器进行包装
+
+```ts
+// figma plugin ifame
+new RPCMessageEvent({
+    currentEndpoint: window,
+    targetEndpoint: window.parent,
+    receiveAdapter(event) {
+        if (event.origin === 'xxx') {
+            return event.data;
+        }
+        return null;
+    },
+});
+```
 
 如 figma 插件中 iframe 与主应用通信需要使用 `pluginMessage` 字段包裹。
 
@@ -610,13 +628,13 @@ interface RPCEvent {
 }
 ```
 
-常见的事件 API 不做赘述
+参考 [socket.io](https://socket.io/) API 不做赘述
 
 | 方法    | 说明                                    |
 | :------ | :-------------------------------------- |
-| on      | 设置事件监听                            |
-| emit    | 触发事件                                |
-| off     | 移除事件监听                            |
+| on      | 设置本地服务事件监听                    |
+| emit    | 触发远程服务事件                        |
+| off     | 移除本地服务事件监听                    |
 | onerror | 发生错误时触发 onerror 回调             |
 | destroy | 释放 RPCMessageEvent 资源与内部事件监听 |
 
@@ -650,8 +668,7 @@ yarn build
 
 # TODO
 
-[] onmessage 需要检查消息来源
 [] 添加测试用例
+[] onmessage 需要检查消息来源
 [] proxy 化
 [] 协程支持
-

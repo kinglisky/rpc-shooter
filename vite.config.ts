@@ -3,18 +3,22 @@ import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
 const exampleConfig = {
-    root: resolve(__dirname, './examples'),
+    root: resolve(__dirname, './test/examples'),
 
     build: {
         rollupOptions: {
             input: {
-                index: resolve(__dirname, './examples/index.html'),
-                child: resolve(__dirname, './examples/child.html'),
-                worker: resolve(__dirname, './examples/worker.html'),
-                window1: resolve(__dirname, './examples/window1.html'),
-                window2: resolve(__dirname, './examples/window2.html'),
+                index: resolve(__dirname, './test/examples/index.html'),
+                child: resolve(__dirname, './test/examples/child.html'),
+                worker: resolve(__dirname, './test/examples/worker.html'),
+                window1: resolve(__dirname, './test/examples/window1.html'),
+                window2: resolve(__dirname, './test/examples/window2.html'),
             },
         },
+    },
+
+    server: {
+        port: 8000,
     },
 };
 

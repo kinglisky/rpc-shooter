@@ -1,4 +1,4 @@
-import { RPCMessageEvent, RPC } from '../src/index';
+import { RPCMessageEvent, RPC } from './lib';
 import RPCWorker from './worker.self?worker';
 import { AMethods } from './methods';
 import imagURL from './test.jpg';
