@@ -550,7 +550,10 @@ type sendAdapter = (
 };
 ```
 
-发送数据前的适配函数，在一些特殊环境下可以对发送的数据做一些处理，还可以为发送的数据附加 [transferList](https://developer.mozilla.org/zh-CN/docs/Web/API/Transferable) 优化数据传输。
+发送数据前的适配函数，在一些特殊环境下可以对发送的数据做一些处理：
+
+-   可以为发送的数据附加 [transferList](https://developer.mozilla.org/zh-CN/docs/Web/API/Transferable) 优化数据传输
+-   一些应用插件场景对交互数据格式有一定要求则可以使用此适配器进行包装
 
 ```ts
 new RPCMessageEvent({
@@ -579,11 +582,10 @@ type receiveAdapter = (event: MessageEvent) => RPCMessageDataFormat;
 数据接收前的处理函数，**一般情况不需要配置**，在一些特殊场景下：
 
 -   检查数据 `origin` 来源过滤掉不安全消息请求
--   本地开发场景下一些 dev server 抛出消息事件
+-   过滤掉本地开发场景下一些 dev server 抛出消息事件
 -   一些应用插件场景对交互数据格式有一定要求则可以使用此适配器进行包装
 
 ```ts
-// figma plugin ifame
 new RPCMessageEvent({
     currentEndpoint: window,
     targetEndpoint: window.parent,
@@ -668,7 +670,7 @@ yarn build
 
 # TODO
 
-[] 添加测试用例
-[] onmessage 需要检查消息来源
-[] proxy 化
-[] 协程支持
+-   [ ] 添加测试用例
+-   [ ] onmessage 需要检查消息来源
+-   [ ] proxy 化
+-   [ ] 协程支持
