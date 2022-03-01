@@ -15,5 +15,5 @@
         "noImplicitReturns": true,
         "declaration": true
     },
-    "include": ["src", "examples/vite-env.d.ts"]
+    "include": ["src", "./vite-env.d.ts"]
 }

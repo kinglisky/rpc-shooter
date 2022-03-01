@@ -1,4 +1,4 @@
-import { RPCMessageEvent, RPC } from '../src/index';
+import { RPCMessageEvent, RPC } from './lib';
 import SWorker from './worker.share?sharedworker';
 import { AMethods } from './methods';
 import './style.css';
