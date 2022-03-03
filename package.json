@@ -1,20 +1,19 @@
 {
     "name": "rpc-shooter",
     "private": false,
-    "version": "0.0.6",
+    "version": "0.0.7",
     "files": [
-        "lib",
-        "src"
+        "lib"
     ],
     "main": "./lib/index.umd.js",
     "module": "./lib/index.es.js",
     "exports": {
         ".": {
             "import": "./lib/index.es.js",
-            "require": "./lib/index.es.js"
+            "require": "./lib/index.umd.js"
         }
     },
-    "types": "lib/index.d.ts",
+    "types": "./lib/index.d.ts",
     "scripts": {
         "dev": "vite",
         "preview": "vite preview",
