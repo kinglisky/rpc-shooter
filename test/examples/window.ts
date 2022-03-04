@@ -1,16 +1,16 @@
 import { RPCMessageEvent, RPC } from './lib';
 import { methods, initChildCases } from './cases';
+import './style.css';
 
-const ctx: Worker = self as any;
 const rpc = new RPC({
     event: new RPCMessageEvent({
-        currentEndpoint: ctx,
-        targetEndpoint: ctx,
+        currentEndpoint: window,
+        targetEndpoint: window.opener,
+        config: { targetOrigin: '*' },
     }),
 });
-
 initChildCases({
     rpc,
     methods,
-    desc: 'Self worker',
+    desc: 'new window',
 });

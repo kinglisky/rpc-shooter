@@ -1,5 +1,5 @@
 import { RPCMessageEvent, RPC } from './lib';
-import { methods, initCases } from './cases';
+import { methods, initChildCases } from './cases';
 import './style.css';
 
 const rpc = new RPC({
@@ -9,6 +9,8 @@ const rpc = new RPC({
     }),
 });
 
-(window as any).rpc = rpc;
-(window as any).methods = methods;
-(window as any).runCases = initCases(rpc, methods, 'Iframe child invoke main method');
+initChildCases({
+    rpc,
+    methods,
+    desc: 'iframe',
+});

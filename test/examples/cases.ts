@@ -47,37 +47,45 @@ export interface TestResult {
     expect: { result?: any; error?: any };
 }
 
-export function initCases(rpc: RPC, methods: Method[], caseDesc: string) {
+const CHILD_METHOD_NAME = 'runChildCases';
+
+function initCases(
+    options: { rpc: RPC; methods: Method[]; desc: string },
+    isMain: boolean = false
+) {
+    const { rpc, methods, desc } = options;
     methods.forEach((method) => {
         rpc.registerMethod(method.name, method.fn);
     });
-    const cases = methods.map((method) => {
-        const name = `${caseDesc}:${method.name}`;
-        return {
-            name,
-            case: () => {
-                return rpc.invoke(method.name, method.params);
-            },
-            expect: () => {
-                console.log(`${name}:run expect`);
-                return Promise.resolve(method.fn(method.params));
-            },
-        };
-    });
+
     return async function runCases() {
         await rpc.connect();
+        const cases = methods.map((method) => {
+            const name = isMain
+                ? `${desc} main invoke child ---> ${method.name}`
+                : `${desc} child invoke main ---> ${method.name}`;
+            return {
+                name,
+                case: () => {
+                    return rpc.invoke(method.name, method.params);
+                },
+                expect: () => {
+                    return Promise.resolve(method.fn(method.params));
+                },
+            };
+        });
         const promises = cases.map(async (caseItem) => {
             const expectRes = await caseItem
                 .expect()
                 .then((result) => ({ result }))
                 .catch((error) => ({ error: error.message }));
-            console.log(`${caseItem.name} ~ run expect:`, expectRes);
+            console.log(`${caseItem.name} ~ expect:`, expectRes);
 
             const caseRes = await caseItem
                 .case()
                 .then((result) => ({ result }))
                 .catch((error) => ({ error: error.message }));
-            console.log(`${caseItem.name} ~ run case:`, caseRes);
+            console.log(`${caseItem.name} ~ case:`, caseRes);
 
             return {
                 name: caseItem.name,
@@ -87,4 +95,18 @@ export function initCases(rpc: RPC, methods: Method[], caseDesc: string) {
         });
         return Promise.all(promises);
     };
+}
+
+export function initMainCases(options: { rpc: RPC; methods: Method[]; desc: string }) {
+    const runCases = initCases(options, true);
+
+    return async () => {
+        const main = await runCases();
+        const child = await options.rpc.invoke(CHILD_METHOD_NAME, null);
+        return { main, child };
+    };
+}
+
+export function initChildCases(options: { rpc: RPC; methods: Method[]; desc: string }) {
+    options.rpc.registerMethod(CHILD_METHOD_NAME, initCases(options, false));
 }

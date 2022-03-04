@@ -1,5 +1,4 @@
 import { RPCMessageEvent, RPC } from './lib';
-import { BMethods } from './methods';
 
 const ctx: Worker = self as any;
 const rpc = new RPC({
@@ -7,7 +6,6 @@ const rpc = new RPC({
         currentEndpoint: ctx,
         targetEndpoint: ctx,
     }),
-    methods: BMethods,
 });
 
 function toGray(data: ImageData): ImageData {
@@ -35,10 +33,6 @@ function getImageData(data: ImageBitmap) {
     return ctx.getImageData(0, 0, data.width, data.height);
 }
 
-rpc.registerMethod('B.toGray', (data) => {
+rpc.registerMethod('toGray', (data) => {
     return toGray(getImageData(data));
-});
-
-rpc.invoke('A.add', [1, 2]).then((res) => {
-    console.log(`B invoke A.add result: ${res}`);
 });
