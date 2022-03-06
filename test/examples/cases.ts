@@ -59,7 +59,7 @@ function initCases(
     });
 
     return async function runCases() {
-        await rpc.connect();
+        await rpc.connect(2000);
         const cases = methods.map((method) => {
             const name = isMain
                 ? `${desc} main invoke child ---> ${method.name}`
@@ -108,5 +108,7 @@ export function initMainCases(options: { rpc: RPC; methods: Method[]; desc: stri
 }
 
 export function initChildCases(options: { rpc: RPC; methods: Method[]; desc: string }) {
-    options.rpc.registerMethod(CHILD_METHOD_NAME, initCases(options, false));
+    const runCases = initCases(options, false);
+    options.rpc.registerMethod(CHILD_METHOD_NAME, runCases);
+    return runCases;
 }

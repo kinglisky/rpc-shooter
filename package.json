@@ -1,7 +1,7 @@
 {
     "name": "rpc-shooter",
     "private": false,
-    "version": "0.0.7",
+    "version": "0.0.8",
     "files": [
         "lib"
     ],
@@ -30,6 +30,7 @@
         "typescript": "^4.5.4",
         "vite": "^2.8.0",
         "vite-plugin-dts": "^0.9.9",
+        "vite-plugin-pwa": "^0.11.13",
         "vitest": "^0.5.9"
     },
     "description": "A tool library for handling window && iframe && worker communication based on the JSON RPC specification",

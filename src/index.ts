@@ -24,15 +24,17 @@ export interface RPCMessageDataFormat {
 export interface RPCPostMessageConfig {
     targetOrigin?: unknown;
 }
+
+export type RPCMessageEndpoint = Window | Worker | ServiceWorker | MessagePort | BroadcastChannel;
 export interface RPCMessageEventOptions {
-    currentEndpoint: Window | Worker | MessagePort;
-    targetEndpoint: Window | Worker | MessagePort;
+    currentEndpoint: RPCMessageEndpoint;
+    targetEndpoint: RPCMessageEndpoint;
     config?:
-        | ((data: any, context: Window | Worker | MessagePort) => RPCPostMessageConfig)
+        | ((data: any, context: RPCMessageEndpoint) => RPCPostMessageConfig)
         | RPCPostMessageConfig;
     sendAdapter?: (
         data: RPCMessageDataFormat,
-        context: Window | Worker | MessagePort
+        context: RPCMessageEndpoint
     ) => {
         data: RPCMessageDataFormat;
         transferList?: Transferable[];
@@ -106,23 +108,29 @@ export class RPCMessageEvent implements RPCEvent {
             }
         };
         if (this._currentEndpoint.addEventListener) {
+            if ('start' in this._currentEndpoint) {
+                this._currentEndpoint.start();
+            }
             this._currentEndpoint.addEventListener(
                 'message',
                 receiveMessage as EventListenerOrEventListenerObject,
                 false
             );
             this._receiveMessage = receiveMessage;
-        } else {
-            // some plugine env don't support addEventListener（like figma.ui)
-            this._originOnmessage = this._currentEndpoint.onmessage;
-            this._currentEndpoint.onmessage = (event: MessageEvent) => {
-                if (this._originOnmessage) {
-                    this._originOnmessage(event);
-                }
-                receiveMessage(event);
-            };
-            this._receiveMessage = this._currentEndpoint.onmessage;
+            return;
         }
+        // some plugine env don't support addEventListener（like figma.ui)
+        // @ts-ignore
+        this._originOnmessage = this._currentEndpoint.onmessage;
+        // @ts-ignore
+        this._currentEndpoint.onmessage = (event: MessageEvent) => {
+            if (this._originOnmessage) {
+                this._originOnmessage(event);
+            }
+            receiveMessage(event);
+        };
+        // @ts-ignore
+        this._receiveMessage = this._currentEndpoint.onmessage;
     }
 
     emit(event: string, ...args: any[]): void {
@@ -141,17 +149,10 @@ export class RPCMessageEvent implements RPCEvent {
         if (Array.isArray(result.transferList) && result.transferList.length) {
             postArgs.push(result.transferList);
         }
-        // in worker env
-        if (
-            RPCMessageEvent.WorkerConstructorNames.includes(this._targetEndpoint.constructor.name)
-        ) {
-            this._targetEndpoint.postMessage(sendData, ...postArgs);
-            return;
-        }
-        if (postMessageConfig.targetOrigin) {
-            postArgs.unshift(postMessageConfig.targetOrigin);
-        }
         // in window env
+        if (this._targetEndpoint.constructor.name === 'Window') {
+            postArgs.unshift(postMessageConfig.targetOrigin || '*');
+        }
         this._targetEndpoint.postMessage(sendData, ...postArgs);
     }
 
@@ -179,8 +180,13 @@ export class RPCMessageEvent implements RPCEvent {
                 this._receiveMessage as EventListenerOrEventListenerObject,
                 false
             );
-        } else {
+            return;
+        }
+        try {
+            // @ts-ignore
             this._currentEndpoint.onmessage = this._originOnmessage;
+        } catch (error) {
+            console.warn(error);
         }
     }
 }

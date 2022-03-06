@@ -1,5 +1,6 @@
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 import dts from 'vite-plugin-dts';
 
 const exampleConfig = {
@@ -15,6 +16,14 @@ const exampleConfig = {
             },
         },
     },
+
+    plugins: [
+        VitePWA({
+            devOptions: {
+                enabled: true,
+            },
+        }),
+    ],
 
     server: {
         port: 8000,
