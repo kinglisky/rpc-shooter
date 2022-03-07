@@ -25,7 +25,45 @@ export interface RPCPostMessageConfig {
     targetOrigin?: unknown;
 }
 
-export type RPCMessageEndpoint = Window | Worker | ServiceWorker | MessagePort | BroadcastChannel;
+export interface AbstractMessageEndpoint extends EventTarget {
+    onmessage?: ((this: AbstractMessageEndpoint, ev: MessageEvent) => any) | null;
+    onmessageerror?: ((this: AbstractMessageEndpoint, ev: MessageEvent) => any) | null;
+    /** Disconnects the port, so that it is no longer active. */
+    close?: () => void;
+    /** Begins dispatching messages received on the port. */
+    start?: () => void;
+
+    postMessage(message: any, ...args: any[]): void;
+
+    addEventListener<K extends keyof MessagePortEventMap>(
+        type: K,
+        listener: (this: AbstractMessageEndpoint, ev: MessagePortEventMap[K]) => any,
+        options?: boolean | AddEventListenerOptions
+    ): void;
+    addEventListener(
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | AddEventListenerOptions
+    ): void;
+    removeEventListener<K extends keyof MessagePortEventMap>(
+        type: K,
+        listener: (this: AbstractMessageEndpoint, ev: MessagePortEventMap[K]) => any,
+        options?: boolean | EventListenerOptions
+    ): void;
+    removeEventListener(
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | EventListenerOptions
+    ): void;
+}
+
+export type RPCMessageEndpoint =
+    | Window
+    | Worker
+    | ServiceWorker
+    | MessagePort
+    | BroadcastChannel
+    | AbstractMessageEndpoint;
 export interface RPCMessageEventOptions {
     currentEndpoint: RPCMessageEndpoint;
     targetEndpoint: RPCMessageEndpoint;
@@ -108,7 +146,7 @@ export class RPCMessageEvent implements RPCEvent {
             }
         };
         if (this._currentEndpoint.addEventListener) {
-            if ('start' in this._currentEndpoint) {
+            if ('start' in this._currentEndpoint && this._currentEndpoint.start) {
                 this._currentEndpoint.start();
             }
             this._currentEndpoint.addEventListener(

@@ -62,11 +62,12 @@ function initWindowCases() {
                 config: { targetOrigin: '*' },
             }),
         });
-        return initMainCases({
+        const run = initMainCases({
             rpc,
             methods,
             desc: 'new window',
         });
+        return run();
     };
 }
 
@@ -145,10 +146,32 @@ function initServiceWorkerCases() {
         });
 }
 
-(window as any).runIframeCases = initIframeCases();
-(window as any).runSelfWorkerCases = initSelfWorkerCases();
-(window as any).runSharedWorkerCases = initSharedWorkerCases();
-(window as any).runWindowCases = initWindowCases();
-(window as any).runMessageChannelCases = initMessageChannelCases();
-(window as any).runBroadcastChannelCases = initBroadcastChannelCases();
-(window as any).runServiceWorkerCases = initServiceWorkerCases();
+function initAllCases() {
+    const runIframeCases = initIframeCases();
+    const runSelfWorkerCases = initSelfWorkerCases();
+    const runSharedWorkerCases = initSharedWorkerCases();
+    const runWindowCases = initWindowCases();
+    const runMessageChannelCases = initMessageChannelCases();
+    const runBroadcastChannelCases = initBroadcastChannelCases();
+    // const runServiceWorkerCases = initServiceWorkerCases();
+
+    (window as any).runIframeCases = runIframeCases;
+    (window as any).runSelfWorkerCases = runSelfWorkerCases;
+    (window as any).runSharedWorkerCases = runSharedWorkerCases;
+    (window as any).runWindowCases = runWindowCases;
+    (window as any).runMessageChannelCases = runMessageChannelCases;
+    (window as any).runBroadcastChannelCases = runBroadcastChannelCases;
+    // (window as any).runServiceWorkerCases = runServiceWorkerCases;
+    return () => {
+        return Promise.all([
+            runIframeCases(),
+            runSelfWorkerCases(),
+            runSharedWorkerCases(),
+            runWindowCases(),
+            runMessageChannelCases(),
+            runBroadcastChannelCases(),
+        ]);
+    };
+}
+
+(window as any).runAllCases = initAllCases();
