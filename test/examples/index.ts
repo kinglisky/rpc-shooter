@@ -112,43 +112,46 @@ function initBroadcastChannelCases() {
 }
 
 function initServiceWorkerCases() {
-    function init() {
+    const registerPromise = window.navigator.serviceWorker.register('./sw.ts?dev-sw', {
+        type: 'module',
+        scope: './',
+    });
+    window.addEventListener('message', (event) => {
+        console.log('window message:', event.data);
+    });
+    window.navigator.serviceWorker.addEventListener('message', (event) => {
+        console.log('serviceWorker message:', event.data);
+    });
+    window.navigator.serviceWorker.controller?.addEventListener('message', (event) => {
+        console.log('serviceWorker.controller message:', event.data);
+    });
+    window.navigator.serviceWorker.controller?.postMessage('hello');
+    return async () => {
+        await registerPromise;
         const endpoint = window.navigator.serviceWorker.controller;
         if (endpoint) {
             console.log(endpoint);
             const rpc = new RPC({
                 event: new RPCMessageEvent({
-                    currentEndpoint: endpoint,
+                    currentEndpoint: window.navigator.serviceWorker,
                     targetEndpoint: endpoint,
                 }),
             });
-            return initMainCases({
+            const run = initMainCases({
                 rpc,
                 methods,
-                desc: 'BroadcastChannel',
+                desc: 'ServiceWorker',
             });
+            return run();
         }
-    }
-    window.navigator.serviceWorker
-        .register('./sw.ts?dev-sw', { type: 'module' })
-        .then((registration) => {
-            if (registration.installing) {
-                console.log('ServiceWorker installing');
-            }
-            if (registration.waiting) {
-                console.log('ServiceWorker waiting');
-            }
-            if (registration.active) {
-                console.log('ServiceWorker active');
-                init();
-            }
-        });
+        return null;
+    };
 }
 
-(window as any).runIframeCases = initIframeCases();
-(window as any).runSelfWorkerCases = initSelfWorkerCases();
-(window as any).runSharedWorkerCases = initSharedWorkerCases();
-(window as any).runWindowCases = initWindowCases();
-(window as any).runMessageChannelCases = initMessageChannelCases();
-(window as any).runBroadcastChannelCases = initBroadcastChannelCases();
+// (window as any).runIframeCases = initIframeCases();
+// (window as any).runSelfWorkerCases = initSelfWorkerCases();
+// (window as any).runSharedWorkerCases = initSharedWorkerCases();
+// (window as any).runWindowCases = initWindowCases();
+// (window as any).runMessageChannelCases = initMessageChannelCases();
+// (window as any).runBroadcastChannelCases = initBroadcastChannelCases();
 (window as any).runServiceWorkerCases = initServiceWorkerCases();

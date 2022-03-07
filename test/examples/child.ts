@@ -32,5 +32,5 @@ function initBroadcastChannelCases() {
     });
 }
 
-initIframeCases();
-initBroadcastChannelCases();
+// initIframeCases();
+// initBroadcastChannelCases();
