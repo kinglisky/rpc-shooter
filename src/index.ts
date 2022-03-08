@@ -25,9 +25,9 @@ export interface RPCPostMessageConfig {
     targetOrigin?: unknown;
 }
 
-export interface AbstractMessageEndpoint extends EventTarget {
-    onmessage?: ((this: AbstractMessageEndpoint, ev: MessageEvent) => any) | null;
-    onmessageerror?: ((this: AbstractMessageEndpoint, ev: MessageEvent) => any) | null;
+export interface AbstractMessageReceiveEndpoint extends EventTarget {
+    onmessage?: ((this: AbstractMessageReceiveEndpoint, ev: MessageEvent) => any) | null;
+    onmessageerror?: ((this: AbstractMessageReceiveEndpoint, ev: MessageEvent) => any) | null;
     /** Disconnects the port, so that it is no longer active. */
     close?: () => void;
     /** Begins dispatching messages received on the port. */
@@ -37,7 +37,7 @@ export interface AbstractMessageEndpoint extends EventTarget {
 
     addEventListener<K extends keyof MessagePortEventMap>(
         type: K,
-        listener: (this: AbstractMessageEndpoint, ev: MessagePortEventMap[K]) => any,
+        listener: (this: AbstractMessageReceiveEndpoint, ev: MessagePortEventMap[K]) => any,
         options?: boolean | AddEventListenerOptions
     ): void;
     addEventListener(
@@ -47,7 +47,7 @@ export interface AbstractMessageEndpoint extends EventTarget {
     ): void;
     removeEventListener<K extends keyof MessagePortEventMap>(
         type: K,
-        listener: (this: AbstractMessageEndpoint, ev: MessagePortEventMap[K]) => any,
+        listener: (this: AbstractMessageReceiveEndpoint, ev: MessagePortEventMap[K]) => any,
         options?: boolean | EventListenerOptions
     ): void;
     removeEventListener(
@@ -57,22 +57,35 @@ export interface AbstractMessageEndpoint extends EventTarget {
     ): void;
 }
 
-export type RPCMessageEndpoint =
+export interface AbstractMessageSendEndpoint {
+    postMessage(message: any, ...args: any[]): void;
+}
+
+export type RPCMessageReceiveEndpoint =
     | Window
     | Worker
     | ServiceWorker
     | MessagePort
     | BroadcastChannel
-    | AbstractMessageEndpoint;
+    | AbstractMessageReceiveEndpoint;
+
+export type RPCMessageSendEndpoint =
+    | Window
+    | Worker
+    | ServiceWorker
+    | MessagePort
+    | BroadcastChannel
+    | AbstractMessageSendEndpoint;
+
 export interface RPCMessageEventOptions {
-    currentEndpoint: RPCMessageEndpoint;
-    targetEndpoint: RPCMessageEndpoint;
+    currentEndpoint: RPCMessageReceiveEndpoint;
+    targetEndpoint: RPCMessageSendEndpoint;
     config?:
-        | ((data: any, context: RPCMessageEndpoint) => RPCPostMessageConfig)
+        | ((data: any, context: RPCMessageSendEndpoint) => RPCPostMessageConfig)
         | RPCPostMessageConfig;
     sendAdapter?: (
         data: RPCMessageDataFormat,
-        context: RPCMessageEndpoint
+        context: RPCMessageSendEndpoint
     ) => {
         data: RPCMessageDataFormat;
         transferList?: Transferable[];
@@ -96,13 +109,6 @@ export const RPCCodes: Record<string, Pick<RPCError, 'code' | 'message'>> = {
 };
 
 export class RPCMessageEvent implements RPCEvent {
-    static WorkerConstructorNames: Array<string> = [
-        'DedicatedWorkerGlobalScope',
-        'SharedWorkerGlobalScope',
-        'Worker',
-        'SharedWorker',
-        'MessagePort',
-    ];
     private _currentEndpoint: RPCMessageEventOptions['currentEndpoint'];
     private _targetEndpoint: RPCMessageEventOptions['targetEndpoint'];
     private _events: Record<string, Array<RPCHandler>>;
