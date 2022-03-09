@@ -111,7 +111,17 @@ npm i rpc-shooter -S
 
 ## 使用
 
-使用 `RPCMessageEvent` 模块可以实现 `Window`、`Iframe`、`Worker` 或者 `Shared Worker` 间的事件交互，如果有更复杂的事件交互场景，实现自己的 `event` 模块即可。
+使用 `RPCMessageEvent` 模块可以涵盖下列模块的消息通信：
+
+-   [Window](https://developer.mozilla.org/zh-CN/docs/Web/API/Window/postMessage)
+-   [Worker](https://developer.mozilla.org/zh-CN/docs/Web/API/Worker/postMessage)
+-   [SharedWorker](https://developer.mozilla.org/zh-CN/docs/Web/API/SharedWorker)
+-   [ServiceWorker](https://developer.mozilla.org/zh-CN/docs/Web/API/ServiceWorker)
+-   [MessageChannel](https://developer.mozilla.org/zh-CN/docs/Web/API/MessageChannel)
+-   [BroadcastChannel](https://developer.mozilla.org/zh-CN/docs/Web/API/BroadcastChannel)
+-   [MessagePort](https://developer.mozilla.org/zh-CN/docs/Web/API/MessagePort)
+
+如果有更复杂的事件交互场景，实现自己的 `event` 模块即可。
 
 ### iframe
 
@@ -488,7 +498,8 @@ interface RPCMessageDataFormat {
 }
 
 interface RPCPostMessageConfig {
-    targetOrigin?: unknown;
+    targetOrigin?: string;
+    transfer?: Transferable[];
 }
 
 interface RPCMessageEventOptions {
@@ -670,7 +681,7 @@ yarn build
 
 # TODO
 
--   [ ] 添加测试用例
+-   [-] 添加测试用例
 -   [ ] onmessage 需要检查消息来源
 -   [ ] proxy 化
 -   [ ] 协程支持

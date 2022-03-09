@@ -30,7 +30,6 @@ function loadImage(url: string): Promise<HTMLImageElement> {
             },
         }),
     });
-
     const image = await loadImage(imagURL);
     const imageDataMap = await window.createImageBitmap(image);
     const grayImage = document.querySelector('.gray') as HTMLImageElement;
@@ -42,4 +41,6 @@ function loadImage(url: string): Promise<HTMLImageElement> {
         ctx.putImageData(res, 0, 0);
         grayImage.setAttribute('src', canvas.toDataURL());
     });
+
+    // await rpc.invoke('toGray', document.querySelector('body'));
 })();

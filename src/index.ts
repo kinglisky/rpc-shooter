@@ -21,9 +21,7 @@ export interface RPCMessageDataFormat {
     args: any[];
 }
 
-export interface RPCPostMessageConfig {
-    targetOrigin?: unknown;
-}
+export interface RPCPostMessageConfig extends WindowPostMessageOptions {}
 
 export interface AbstractMessageSendEndpoint {
     // BroadcastChannel
@@ -193,14 +191,10 @@ export class RPCMessageEvent implements RPCEvent {
                 ? this.config(sendData, this._targetEndpoint) || {}
                 : this.config || {}
             : {};
-        const options: WindowPostMessageOptions = {};
         if (Array.isArray(result.transfer) && result.transfer.length) {
-            options.transfer = result.transfer;
+            postMessageConfig.transfer = result.transfer;
         }
-        if (postMessageConfig.targetOrigin) {
-            options.targetOrigin = postMessageConfig.targetOrigin as string;
-        }
-        this._targetEndpoint.postMessage(sendData, options);
+        this._targetEndpoint.postMessage(sendData, postMessageConfig);
     }
 
     on(event: string, fn: RPCHandler): void {
