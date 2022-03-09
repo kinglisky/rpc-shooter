@@ -34,6 +34,7 @@ export interface AbstractMessageReceiveEndpoint extends EventTarget {
     start?: () => void;
 
     postMessage(message: any, ...args: any[]): void;
+    postMessage(message: any, options?: WindowPostMessageOptions): void;
 
     addEventListener<K extends keyof MessagePortEventMap>(
         type: K,
@@ -59,6 +60,7 @@ export interface AbstractMessageReceiveEndpoint extends EventTarget {
 
 export interface AbstractMessageSendEndpoint {
     postMessage(message: any, ...args: any[]): void;
+    postMessage(message: any, options?: WindowPostMessageOptions): void;
 }
 
 export type RPCMessageReceiveEndpoint =
@@ -189,15 +191,14 @@ export class RPCMessageEvent implements RPCEvent {
                 ? this.config(sendData, this._targetEndpoint) || {}
                 : this.config || {}
             : {};
-        const postArgs: any[] = [];
+        const options: WindowPostMessageOptions = {};
         if (Array.isArray(result.transferList) && result.transferList.length) {
-            postArgs.push(result.transferList);
+            options.transfer = result.transferList;
         }
-        // in window env
-        if (this._targetEndpoint.constructor.name === 'Window') {
-            postArgs.unshift(postMessageConfig.targetOrigin || '*');
+        if (postMessageConfig.targetOrigin) {
+            options.targetOrigin = postMessageConfig.targetOrigin as string;
         }
-        this._targetEndpoint.postMessage(sendData, ...postArgs);
+        this._targetEndpoint.postMessage(sendData, options);
     }
 
     on(event: string, fn: RPCHandler): void {
