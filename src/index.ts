@@ -25,16 +25,23 @@ export interface RPCPostMessageConfig {
     targetOrigin?: unknown;
 }
 
-export interface AbstractMessageReceiveEndpoint extends EventTarget {
+export interface AbstractMessageSendEndpoint {
+    // BroadcastChannel
+    postMessage(message: any): void;
+    // Wroker && ServiceWorker && MessagePort
+    postMessage(message: any, transfer: Transferable[]): void;
+    postMessage(message: any, options?: StructuredSerializeOptions): void;
+    // window
+    postMessage(message: any, options?: WindowPostMessageOptions): void;
+    postMessage(message: any, targetOrigin: string, transfer?: Transferable[]): void;
+}
+export interface AbstractMessageReceiveEndpoint extends EventTarget, AbstractMessageSendEndpoint {
     onmessage?: ((this: AbstractMessageReceiveEndpoint, ev: MessageEvent) => any) | null;
     onmessageerror?: ((this: AbstractMessageReceiveEndpoint, ev: MessageEvent) => any) | null;
     /** Disconnects the port, so that it is no longer active. */
     close?: () => void;
     /** Begins dispatching messages received on the port. */
     start?: () => void;
-
-    postMessage(message: any, ...args: any[]): void;
-    postMessage(message: any, options?: WindowPostMessageOptions): void;
 
     addEventListener<K extends keyof MessagePortEventMap>(
         type: K,
@@ -56,11 +63,6 @@ export interface AbstractMessageReceiveEndpoint extends EventTarget {
         listener: EventListenerOrEventListenerObject,
         options?: boolean | EventListenerOptions
     ): void;
-}
-
-export interface AbstractMessageSendEndpoint {
-    postMessage(message: any, ...args: any[]): void;
-    postMessage(message: any, options?: WindowPostMessageOptions): void;
 }
 
 export type RPCMessageReceiveEndpoint =
@@ -90,7 +92,7 @@ export interface RPCMessageEventOptions {
         context: RPCMessageSendEndpoint
     ) => {
         data: RPCMessageDataFormat;
-        transferList?: Transferable[];
+        transfer?: Transferable[];
     };
     receiveAdapter?: (event: MessageEvent) => RPCMessageDataFormat;
 }
@@ -192,8 +194,8 @@ export class RPCMessageEvent implements RPCEvent {
                 : this.config || {}
             : {};
         const options: WindowPostMessageOptions = {};
-        if (Array.isArray(result.transferList) && result.transferList.length) {
-            options.transfer = result.transferList;
+        if (Array.isArray(result.transfer) && result.transfer.length) {
+            options.transfer = result.transfer;
         }
         if (postMessageConfig.targetOrigin) {
             options.targetOrigin = postMessageConfig.targetOrigin as string;

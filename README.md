@@ -502,7 +502,7 @@ interface RPCMessageEventOptions {
         context: Window | Worker | MessagePort
     ) => {
         data: RPCMessageDataFormat;
-        transferList?: Transferable[];
+        transfer?: Transferable[];
     };
     receiveAdapter?: (event: MessageEvent) => RPCMessageDataFormat;
 }
@@ -546,13 +546,13 @@ type sendAdapter = (
     context: Window | Worker | MessagePort
 ) => {
     data: RPCMessageDataFormat;
-    transferList?: Transferable[];
+    transfer?: Transferable[];
 };
 ```
 
 发送数据前的适配函数，在一些特殊环境下可以对发送的数据做一些处理：
 
--   可以为发送的数据附加 [transferList](https://developer.mozilla.org/zh-CN/docs/Web/API/Transferable) 优化数据传输
+-   可以为发送的数据附加 [transfer](https://developer.mozilla.org/zh-CN/docs/Web/API/Transferable) 优化数据传输
 -   一些应用插件场景对交互数据格式有一定要求则可以使用此适配器进行包装
 
 ```ts
@@ -560,15 +560,15 @@ new RPCMessageEvent({
     currentEndpoint: worker,
     targetEndpoint: worker,
     sendAdapter(data) {
-        const transferList = [];
-        // 将 ImageBitmap 添加至 transferList 优化数据传输
+        const transfer = [];
+        // 将 ImageBitmap 添加至 transfer 优化数据传输
         JSON.stringify(data, (_, value) => {
             if (value?.constructor.name === 'ImageBitmap') {
-                transferList.push(value);
+                transfer.push(value);
             }
             return value;
         });
-        return { data, transferList };
+        return { data, transfer };
     },
 });
 ```

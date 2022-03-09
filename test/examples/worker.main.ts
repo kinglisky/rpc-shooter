@@ -19,14 +19,14 @@ function loadImage(url: string): Promise<HTMLImageElement> {
             currentEndpoint: worker,
             targetEndpoint: worker,
             sendAdapter(data) {
-                const transferList = [];
+                const transfer = [];
                 JSON.stringify(data, (_, value) => {
                     if (value?.constructor.name === 'ImageBitmap') {
-                        transferList.push(value);
+                        transfer.push(value);
                     }
                     return value;
                 });
-                return { data, transferList };
+                return { data, transfer };
             },
         }),
     });
