@@ -66,7 +66,6 @@ export interface AbstractMessageReceiveEndpoint extends EventTarget, AbstractMes
 export type RPCMessageReceiveEndpoint =
     | Window
     | Worker
-    | DedicatedWorkerGlobalScope
     | ServiceWorker
     | MessagePort
     | BroadcastChannel
@@ -75,7 +74,6 @@ export type RPCMessageReceiveEndpoint =
 export type RPCMessageSendEndpoint =
     | Window
     | Worker
-    | DedicatedWorkerGlobalScope
     | ServiceWorker
     | MessagePort
     | BroadcastChannel
