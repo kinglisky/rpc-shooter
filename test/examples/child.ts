@@ -6,7 +6,7 @@ function initIframeCases() {
     const rpc = new RPC({
         event: new RPCMessageEvent({
             currentEndpoint: window,
-            targetEndpoint: window.top,
+            targetEndpoint: window.top!,
         }),
     });
 

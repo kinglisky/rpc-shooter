@@ -1,6 +1,6 @@
 import { RPCMessageEvent, RPC } from './lib';
 
-const ctx: Worker = self as any;
+const ctx: WorkerGlobalScope = self as any;
 const rpc = new RPC({
     event: new RPCMessageEvent({
         currentEndpoint: ctx,
