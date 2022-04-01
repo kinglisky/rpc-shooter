@@ -531,13 +531,13 @@ interface RPCMessageEventOptions {
 }
 ```
 
-| 参数            | 类型                                                                                 | 说明                                                                    |
-| :-------------- | :----------------------------------------------------------------------------------- | :---------------------------------------------------------------------- |
-| currentEndpoint | 必填 `Window`、`Worker`、`MessagePort` 等满足 [RPCMessageReceiveEndpoint]() 接口对象 | 当前通信对象的上下文，可以是 `Window`、`Worker` 或者 `MessagePort` 对象 |
-| targetEndpoint  | 必填 `Window`、`Worker`、`MessagePort` 等满足 [RPCMessageSendEndpoint]() 接口对象    | 目标通信对象的上下文，可以是 `Window`、`Worker` 或者 `MessagePort` 对象 |
-| config          | 可选 `RPCPostMessageConfig` or `Function`                                            | 用于给 targetEndpoint.postMessage 方法配置参数                          |
-| sendAdapter     | 可选 `Function`                                                                      | 消息发动前数据处理函数                                                  |
-| receiveAdapter  | 可选 `Function`                                                                      | 消息接受前数据处理函数                                                  |
+| 参数            | 类型                                                                                                   | 说明                                                                    |
+| :-------------- | :----------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------- |
+| currentEndpoint | 必填 `Window`、`Worker`、`MessagePort` 等满足 [RPCMessageReceiveEndpoint](./src/index.ts#L68) 接口对象 | 当前通信对象的上下文，可以是 `Window`、`Worker` 或者 `MessagePort` 对象 |
+| targetEndpoint  | 必填 `Window`、`Worker`、`MessagePort` 等满足 [RPCMessageSendEndpoint](./src/index.ts#L68) 接口对象    | 目标通信对象的上下文，可以是 `Window`、`Worker` 或者 `MessagePort` 对象 |
+| config          | 可选 `RPCPostMessageConfig` or `Function`                                                              | 用于给 targetEndpoint.postMessage 方法配置参数                          |
+| sendAdapter     | 可选 `Function`                                                                                        | 消息发动前数据处理函数                                                  |
+| receiveAdapter  | 可选 `Function`                                                                                        | 消息接受前数据处理函数                                                  |
 
 **config**
 
