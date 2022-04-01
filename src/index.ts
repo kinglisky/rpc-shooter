@@ -25,17 +25,17 @@ export interface RPCPostMessageConfig extends WindowPostMessageOptions {}
 
 export interface AbstractMessageSendEndpoint {
     // BroadcastChannel
-    postMessage(message: any): void;
+    // postMessage(message: any): void;
     // Wroker && ServiceWorker && MessagePort
-    postMessage(message: any, transfer: Transferable[]): void;
-    postMessage(message: any, options?: StructuredSerializeOptions): void;
+    // postMessage(message: any, transfer: Transferable[]): void;
+    // postMessage(message: any, options?: StructuredSerializeOptions): void;
     // window
+    // postMessage(message: any, targetOrigin: string, transfer?: Transferable[]): void;
     postMessage(message: any, options?: WindowPostMessageOptions): void;
-    postMessage(message: any, targetOrigin: string, transfer?: Transferable[]): void;
 }
-export interface AbstractMessageReceiveEndpoint extends EventTarget, AbstractMessageSendEndpoint {
-    onmessage?: ((this: AbstractMessageReceiveEndpoint, ev: MessageEvent) => any) | null;
-    onmessageerror?: ((this: AbstractMessageReceiveEndpoint, ev: MessageEvent) => any) | null;
+export interface AbstractMessageReceiveEndpoint extends AbstractMessageSendEndpoint {
+    onmessage?: ((this: any, ev: MessageEvent) => any) | null;
+    onmessageerror?: ((this: any, ev: MessageEvent) => any) | null;
     /** Disconnects the port, so that it is no longer active. */
     close?: () => void;
     /** Begins dispatching messages received on the port. */
@@ -43,7 +43,7 @@ export interface AbstractMessageReceiveEndpoint extends EventTarget, AbstractMes
 
     addEventListener<K extends keyof MessagePortEventMap>(
         type: K,
-        listener: (this: AbstractMessageReceiveEndpoint, ev: MessagePortEventMap[K]) => any,
+        listener: (this: any, ev: MessagePortEventMap[K]) => any,
         options?: boolean | AddEventListenerOptions
     ): void;
     addEventListener(
@@ -53,7 +53,7 @@ export interface AbstractMessageReceiveEndpoint extends EventTarget, AbstractMes
     ): void;
     removeEventListener<K extends keyof MessagePortEventMap>(
         type: K,
-        listener: (this: AbstractMessageReceiveEndpoint, ev: MessagePortEventMap[K]) => any,
+        listener: (this: any, ev: MessagePortEventMap[K]) => any,
         options?: boolean | EventListenerOptions
     ): void;
     removeEventListener(
@@ -63,21 +63,9 @@ export interface AbstractMessageReceiveEndpoint extends EventTarget, AbstractMes
     ): void;
 }
 
-export type RPCMessageReceiveEndpoint =
-    | Window
-    | Worker
-    | ServiceWorker
-    | MessagePort
-    | BroadcastChannel
-    | AbstractMessageReceiveEndpoint;
+export interface RPCMessageReceiveEndpoint extends AbstractMessageReceiveEndpoint {}
 
-export type RPCMessageSendEndpoint =
-    | Window
-    | Worker
-    | ServiceWorker
-    | MessagePort
-    | BroadcastChannel
-    | AbstractMessageSendEndpoint;
+export interface RPCMessageSendEndpoint extends AbstractMessageSendEndpoint {}
 
 export interface RPCMessageEventOptions {
     currentEndpoint: RPCMessageReceiveEndpoint;
@@ -241,7 +229,7 @@ export interface RPCInitOptions {
 export interface RPCSYNEvent {
     jsonrpc: '2.0';
     method: string;
-    params: any;
+    params: any[];
     id?: string;
 }
 
@@ -253,7 +241,7 @@ export interface RPCSACKEvent {
 }
 
 export interface RPCInvokeOptions {
-    isNotify: boolean;
+    isNotify?: boolean;
     timeout?: number;
 }
 
@@ -370,10 +358,10 @@ export class RPC {
             const ackEventName = this._getAckEventName(method);
             // notify not need ack
             if (!synEventData.id) {
-                handler(synEventData.params);
+                handler(...synEventData.params);
                 return;
             }
-            Promise.resolve(handler(synEventData.params))
+            Promise.resolve(handler(...synEventData.params))
                 .then((result) => {
                     const ackEventData: RPCSACKEvent = {
                         jsonrpc: '2.0',
@@ -406,12 +394,17 @@ export class RPC {
         this._event.off(synEventName);
     }
 
-    invoke(
-        method: string,
-        params: any,
-        options: RPCInvokeOptions = { isNotify: false, timeout: 0 }
-    ): Promise<any> {
+    invoke(method: string, ...args: any[] | [...any[], RPCInvokeOptions]): Promise<any> {
         return new Promise((resolve, reject) => {
+            const lastArg = args[args.length - 1];
+            const hasInvokeOptions =
+                lastArg &&
+                typeof lastArg === 'object' &&
+                (Reflect.has(lastArg, 'isNotify') || Reflect.has(lastArg, 'timeout'));
+            const options: RPCInvokeOptions = hasInvokeOptions
+                ? lastArg
+                : { isNotify: false, timeout: 0 };
+            const params = hasInvokeOptions ? args.slice(0, -1) : args;
             const synEventName = this._getSynEventName(method);
             const synEventId = RPC.uuid();
             const synEventData: RPCSYNEvent = {

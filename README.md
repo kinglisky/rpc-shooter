@@ -407,19 +407,31 @@ removeMethod(method: string);
 ```ts
 invoke(
     method: string,
-    params: any,
-    options: RPCInvokeOptions = { isNotify: false, timeout: 0 }
+    ...args: any[] | [...any[], RPCInvokeOptions]
 ): Promise<any>;
+```
+
+```ts
+rpc1.registerMethod('add', (a: number, b: number, c: number) => {
+    return new Promise((resolve) => {
+        setTimeout(() => resolve(a + b + c), 400);
+    });
+});
+// 可以通过 invokeOptions 配置调用超时
+const res1 = await rpc2.invoke('add', 1, 2, 3);
+const res2 = await rpc2.invoke('add', 4, 5, 6, { isNotify: true });
+const res3 = await rpc2.invoke('add', 7, 8, 9, { timeout: 1000 });
+const res4 = await rpc2.invoke('add', 10, 11, 12, { timeout: 4 }).catch((error) => error);
 ```
 
 调用远程服务
 
 -   method `string` 方法名
--   params `any` 参数
+-   args `any` 参数
 -   invokeOptions.timeout `number` timeout 超时设置，会覆盖全局设置
 -   invokeOptions.isNotify `boolean` 是否是个一个通知消息
 
-如果 invoke 配置了 isNotify，则作为一个通知消息，方法调用后会立即返回，不理会目标服务是否相应，目标也不会响应回复此消息。内部使用 JSON-PRC 的 id 进行标识。
+可以函数调用参数末尾配置 invokeOptions 选项，如果 invoke 配置了 isNotify，则作为一个通知消息，方法调用后会立即返回，不理会目标服务是否相应，目标也不会响应回复此消息。内部使用 JSON-PRC 的 id 进行标识。
 
 > 没有包含“id”成员的请求对象为通知， 作为通知的请求对象表明客户端对相应的响应对象并不感兴趣，本身也没有响应对象需要返回给客户端。服务端必须不回复一个通知，包含那些批量请求中的。
 > 由于通知没有返回的响应对象，所以通知不确定是否被定义。同样，客户端不会意识到任何错误（例如参数缺省，内部错误）。
@@ -503,14 +515,14 @@ interface RPCPostMessageConfig {
 }
 
 interface RPCMessageEventOptions {
-    currentEndpoint: Window | Worker | MessagePort;
-    targetEndpoint: Window | Worker | MessagePort;
+    currentEndpoint: RPCMessageReceiveEndpoint;
+    targetEndpoint: RPCMessageSendEndpoint;
     config?:
-        | ((data: any, context: Window | Worker | MessagePort) => RPCPostMessageConfig)
+        | ((data: any, context: RPCMessageSendEndpoint) => RPCPostMessageConfig)
         | RPCPostMessageConfig;
     sendAdapter?: (
-        data: RPCMessageDataFormat,
-        context: Window | Worker | MessagePort
+        data: RPCMessageDataFormat | any,
+        context: RPCMessageSendEndpoint
     ) => {
         data: RPCMessageDataFormat;
         transfer?: Transferable[];
@@ -519,24 +531,35 @@ interface RPCMessageEventOptions {
 }
 ```
 
-| 参数            | 类型                                      | 说明                                                                    |
-| :-------------- | :---------------------------------------- | :---------------------------------------------------------------------- |
-| currentEndpoint | 必填 `Window`、`Worker`、`MessagePort`    | 当前通信对象的上下文，可以是 `Window`、`Worker` 或者 `MessagePort` 对象 |
-| targetEndpoint  | 必填 `Window`、`Worker`、`MessagePort`    | 目标通信对象的上下文，可以是 `Window`、`Worker` 或者 `MessagePort` 对象 |
-| config          | 可选 `RPCPostMessageConfig` or `Function` | 用于给 targetEndpoint.postMessage 方法配置参数                          |
-| sendAdapter     | 可选 `Function`                           | 消息发动前数据处理函数                                                  |
-| receiveAdapter  | 可选 `Function`                           | 消息接受前数据处理函数                                                  |
+| 参数            | 类型                                                                                 | 说明                                                                    |
+| :-------------- | :----------------------------------------------------------------------------------- | :---------------------------------------------------------------------- |
+| currentEndpoint | 必填 `Window`、`Worker`、`MessagePort` 等满足 [RPCMessageReceiveEndpoint]() 接口对象 | 当前通信对象的上下文，可以是 `Window`、`Worker` 或者 `MessagePort` 对象 |
+| targetEndpoint  | 必填 `Window`、`Worker`、`MessagePort` 等满足 [RPCMessageSendEndpoint]() 接口对象    | 目标通信对象的上下文，可以是 `Window`、`Worker` 或者 `MessagePort` 对象 |
+| config          | 可选 `RPCPostMessageConfig` or `Function`                                            | 用于给 targetEndpoint.postMessage 方法配置参数                          |
+| sendAdapter     | 可选 `Function`                                                                      | 消息发动前数据处理函数                                                  |
+| receiveAdapter  | 可选 `Function`                                                                      | 消息接受前数据处理函数                                                  |
 
 **config**
 
 ```ts
-type config =
-    | ((data: any, context: Window | Worker | MessagePort) => RPCPostMessageConfig)
-    | RPCPostMessageConfig;
+interface WindowPostMessageOptions {
+    transfer?: Transferable[];
+    targetOrigin?: string;
+}
+
+interface RPCPostMessageConfig extends WindowPostMessageOptions {
+}
+
+type config?:
+        | ((data: any, context: RPCMessageSendEndpoint) => RPCPostMessageConfig)
+        | RPCPostMessageConfig;
 ```
 
 用于给 targetEndpoint 的 `postMessage` 方法配置参数，可以直接配置一个对象，也可以通过函数动态返回一个配置。
-目前只有针对 `window.postMessage` 的 `targetOrigin` 配置。
+
+-   给 `window.postMessage` 配置 `targetOrigin` -> `{ targetOrigin: '*' }`
+-   给 `worker.postMessage` 配置 `transfer` -> `{ transfer: [...] }`
+-   给 `figma.ui.postMessage` 配置 `origin` -> `{ origin: '*' }`
 
 ```ts
 new RPCMessageEvent({
@@ -553,8 +576,8 @@ new RPCMessageEvent({
 
 ```ts
 type sendAdapter = (
-    data: RPCMessageDataFormat,
-    context: Window | Worker | MessagePort
+    data: RPCMessageDataFormat | any,
+    context: RPCMessageSendEndpoint
 ) => {
     data: RPCMessageDataFormat;
     transfer?: Transferable[];
@@ -681,7 +704,7 @@ yarn build
 
 # TODO
 
--   [-] 添加测试用例
+-   [ ] 添加测试用例
 -   [ ] onmessage 需要检查消息来源
 -   [ ] proxy 化
 -   [ ] 协程支持

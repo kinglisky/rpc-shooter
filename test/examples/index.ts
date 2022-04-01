@@ -2,6 +2,7 @@ import { RPCMessageEvent, RPC } from './lib';
 import { methods, initMainCases, initChildCases } from './cases';
 import RPCSelfWorker from './worker?worker';
 import RPCSharedWorker from './shared.worker?sharedworker';
+import './dev';
 import './style.css';
 
 function initIframeCases() {
@@ -39,8 +40,8 @@ function initSharedWorkerCases() {
     const worker = new RPCSharedWorker();
     const rpc = new RPC({
         event: new RPCMessageEvent({
-            currentEndpoint: worker.port,
-            targetEndpoint: worker.port,
+            currentEndpoint: worker.port as MessagePort,
+            targetEndpoint: worker.port as MessagePort,
         }),
     });
     return initMainCases({
@@ -162,6 +163,7 @@ function initAllCases() {
     (window as any).runMessageChannelCases = runMessageChannelCases;
     (window as any).runBroadcastChannelCases = runBroadcastChannelCases;
     // (window as any).runServiceWorkerCases = runServiceWorkerCases;
+
     return () => {
         return Promise.all([
             runIframeCases(),
